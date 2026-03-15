@@ -1,0 +1,487 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
+import { config } from '../config';
+import { PrismaClient } from '@prisma/client';
+
+// Generate text helper
+export async function generateAIContent(prompt: string, prisma: PrismaClient): Promise<string> {
+  const settings = await prisma.setting.findMany({
+    where: {
+      key: { in: ['ai_provider', 'ai_api_key', 'ai_base_url', 'ai_model'] },
+    },
+  });
+
+  const configMap = settings.reduce((acc, curr) => {
+    acc[curr.key] = curr.value;
+    return acc;
+  }, {} as Record<string, string>);
+
+  const provider = configMap['ai_provider'] || 'gemini';
+  const apiKey = (configMap['ai_api_key'] || config.geminiApiKey).trim();
+  const baseUrl = configMap['ai_base_url'] || '';
+  const modelName = configMap['ai_model'] || (provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-3.5-turbo');
+
+  if (!apiKey && provider === 'gemini') {
+    throw new Error('No API key configured for Gemini. Please set it in Global Settings or .env.local (GEMINI_API_KEY).');
+  }
+
+  if (provider === 'gemini') {
+    const genai = new GoogleGenerativeAI(apiKey);
+    const model = genai.getGenerativeModel({ model: modelName });
+    const response = await model.generateContent(prompt);
+    return response.response.text();
+  } else {
+    // OpenAI or compatible like LMStudio / Ollama
+    if (!apiKey && !baseUrl) {
+      // For local providers like Ollama, sometimes no key is okay if baseUrl is set
+      // But usually OpenAI needs a key or we're hitting a local endpoint that might not.
+      // We'll allow empty if baseUrl is present, otherwise throw.
+    }
+    
+    const openai = new OpenAI({
+      apiKey: apiKey || 'dummy-key',
+      baseURL: baseUrl || undefined,
+    });
+    
+    const response = await openai.chat.completions.create({
+      model: modelName,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+    });
+    
+    return response.choices[0]?.message?.content || '';
+  }
+}
+
+interface InconsistencyResult {
+  description: string;
+  offending_text: string;
+  source_note_id?: number;
+}
+
+interface ConsistencyCheckResponse {
+  inconsistencies: InconsistencyResult[];
+}
+
+interface TagSuggestionResponse {
+  matched_tags: string[];
+  new_suggestions: string[];
+}
+
+function cleanJsonResponse(text: string): string {
+  return text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
+}
+
+export async function checkConsistency(
+  noteId: number,
+  newContent: string,
+  prisma: PrismaClient
+): Promise<ConsistencyCheckResponse> {
+  const note = await prisma.note.findUnique({ where: { id: noteId } });
+  if (!note) throw new Error('Note not found');
+
+  // Build a list of context notes (chapters and other notes that mention this note's subject)
+  const contextNotes: { id: number; title: string; content: string }[] = [];
+
+  const relatedNotes = await prisma.note.findMany({
+    where: { bookId: note.bookId, id: { not: noteId } },
+  });
+
+  const titleLower = note.title.trim().toLowerCase();
+  const newContentLower = newContent.toLowerCase();
+
+  for (const rNote of relatedNotes) {
+    const rTitleLower = rNote.title.trim().toLowerCase();
+
+    // Condition 1: The other note mentions THIS note's title (useful if this is a character/detail)
+    const mentionsThis = titleLower.length > 0 && rNote.content.toLowerCase().includes(titleLower);
+
+    // Condition 2: THIS note mentions the other note's title (useful if this is a chapter mentioning characters/details)
+    const mentionedByThis = rTitleLower.length > 0 && newContentLower.includes(rTitleLower);
+
+    if (mentionsThis || mentionedByThis) {
+      contextNotes.push({ id: rNote.id, title: rNote.title, content: rNote.content });
+    }
+  }
+
+  // Format context with explicit note IDs so the AI can reference them
+  const historicalContent = contextNotes.length > 0
+    ? contextNotes.map(n =>
+        `[NOTE_ID:${n.id}] "${n.title}":\n${n.content}`
+      ).join('\n\n---\n\n')
+    : `Existing content of note '${note.title}':\n${note.content}`;
+
+  const prompt = `You are a meticulous continuity editor for a novel. Your task is to find contradictions between established facts and new information.
+
+ESTABLISHED CONTEXT (each note is labeled with its NOTE_ID):
+${historicalContent}
+
+NEW INFORMATION being added to the note "${note.title}":
+${newContent}
+
+Analyze the new information and identify any contradictions or inconsistencies with the established context. For each issue found:
+- "description": clearly describe the contradiction
+- "offending_text": the exact phrase from the NEW INFORMATION that contradicts existing facts
+- "source_note_id": the NOTE_ID integer from the context note that contains the conflicting information (e.g., if [NOTE_ID:42] contains the contradicting text, return 42). If you cannot identify a specific note, omit this field.
+
+Return ONLY a JSON object with a single key "inconsistencies" containing an array. If there are no issues, return an empty array.
+
+Example:
+{ "inconsistencies": [
+  { "description": "Captain Dan is described as having brown eyes here, but Chapter 1 states his eyes are green.", "offending_text": "he has brown eyes", "source_note_id": 15 }
+] }`;
+
+  const rawResponse = await generateAIContent(prompt, prisma);
+  
+  // Use try/catch or default array to prevent crash on non-json payload
+  let parsed: ConsistencyCheckResponse = { inconsistencies: [] };
+  try {
+    parsed = JSON.parse(cleanJsonResponse(rawResponse));
+  } catch (error) {
+    console.error('Failed to parse inconsistency JSON:', rawResponse);
+  }
+
+  // Build a set of valid context note IDs for validation
+  const contextNoteIds = new Set(contextNotes.map(n => n.id));
+
+  // Persist results, now including chapterNoteId
+  for (const item of parsed.inconsistencies || []) {
+    // Validate source_note_id is a real context note
+    const chapterNoteId = item.source_note_id && contextNoteIds.has(item.source_note_id)
+      ? item.source_note_id
+      : null;
+
+    const existing = await prisma.inconsistency.findFirst({
+      where: {
+        noteId,
+        description: item.description,
+        offendingText: item.offending_text,
+      },
+    });
+    if (existing) {
+      await prisma.inconsistency.update({
+        where: { id: existing.id },
+        data: { status: 'active', chapterNoteId },
+      });
+    } else {
+      await prisma.inconsistency.create({
+        data: {
+          noteId,
+          chapterNoteId,
+          description: item.description,
+          offendingText: item.offending_text,
+          status: 'active',
+        },
+      });
+    }
+  }
+
+  return parsed;
+}
+
+export async function suggestTags(
+  noteId: number,
+  prisma: PrismaClient
+): Promise<TagSuggestionResponse> {
+  const note = await prisma.note.findUnique({ where: { id: noteId } });
+  if (!note) throw new Error('Note not found');
+
+  const allTags = await prisma.tag.findMany();
+  const noteWithTags = await prisma.note.findUnique({
+    where: { id: noteId },
+    include: { tags: { include: { tag: true } } },
+  });
+  const currentTagNames = new Set(noteWithTags?.tags.map(t => t.tag.name.toLowerCase()) ?? []);
+  const existingTagNames = allTags
+    .map((t) => t.name)
+    .filter(name => !currentTagNames.has(name.toLowerCase()));
+
+  const prompt = `You are an intelligent librarian and archivist. Your task is to analyze a piece of text and suggest tags for it. Here is a master list of all available tags: ${JSON.stringify(existingTagNames)}. Here is the content of a note: '${note.content}'. Please perform two tasks:\n  1.  **Match Existing**: Identify which tags from the master list are the most relevant to the note. Do not suggest tags that are not in the master list.\n  2.  **Suggest New**: Suggest 1-2 brand new, relevant, and concise tags that are not in the master list and would be a good addition.\n  Return your response as a single JSON object with two keys: 'matched_tags' and 'new_suggestions'. Each key should hold an array of strings. For example: { "matched_tags": ["Character Introduction", "Plot Point"], "new_suggestions": ["Secret Alliance"] }`;
+
+  const rawResponse = await generateAIContent(prompt, prisma);
+  let parsed: TagSuggestionResponse = { matched_tags: [], new_suggestions: [] };
+  try {
+    parsed = JSON.parse(cleanJsonResponse(rawResponse));
+  } catch (err) {
+    console.error('Failed to parse suggestTags JSON', rawResponse);
+  }
+
+  // Ensure these exist always
+  parsed.matched_tags = parsed.matched_tags || [];
+  parsed.new_suggestions = parsed.new_suggestions || [];
+
+  // --- Always include mentioned character names as tags ---
+  // Fetch all character notes from the same book to get known character names.
+  const characterNotes = await prisma.note.findMany({
+    where: { bookId: note.bookId, type: 'character', id: { not: noteId } },
+    select: { title: true },
+  });
+
+  const contentLower = note.content.toLowerCase();
+
+  for (const charNote of characterNotes) {
+    const charName = charNote.title.trim();
+    if (!charName) continue;
+
+    // Check if this character is mentioned in the note content.
+    if (!contentLower.includes(charName.toLowerCase())) continue;
+
+    const existingTagMatch = existingTagNames.find(
+      (t) => t.toLowerCase() === charName.toLowerCase()
+    );
+
+    if (existingTagMatch) {
+      // Already a real tag — merge into matched_tags if not already there.
+      const alreadyMatched = parsed.matched_tags.some(
+        (m) => m.toLowerCase() === charName.toLowerCase()
+      );
+      if (!alreadyMatched) {
+        parsed.matched_tags.push(existingTagMatch);
+      }
+    } else {
+      // Not yet a tag — merge into new_suggestions if not already there.
+      const alreadySuggested = parsed.new_suggestions.some(
+        (s) => s.toLowerCase() === charName.toLowerCase()
+      );
+      if (!alreadySuggested) {
+        parsed.new_suggestions.push(charName);
+      }
+    }
+  }
+  // --------------------------------------------------------
+
+  return parsed;
+}
+
+// ======================= Narrative Analysis =======================
+
+export interface CharacterInteraction {
+  characters: string[];
+  summary: string;
+}
+
+export interface InteractionAnalysisResponse {
+  character_interactions: CharacterInteraction[];
+  dialogue_count: Record<string, number>;
+}
+
+export interface ThemeAnalysisResponse {
+  themes: Record<string, string[]>; // theme -> array of chapter titles
+}
+
+export async function analyzeInteractions(content: string, prisma: PrismaClient): Promise<InteractionAnalysisResponse> {
+  const prompt = `Analyze the following text. Identify all characters mentioned and list every meaningful interaction between two or more characters (not just being in the same room). Count the number of dialogue lines spoken by each character.
+
+Return ONLY a JSON object with no markdown fences, using exactly this structure:
+{
+  "character_interactions": [
+    { "characters": ["Character A", "Character B"], "summary": "Brief summary of their interaction" }
+  ],
+  "dialogue_count": {
+    "Character A": 5,
+    "Character B": 3
+  }
+}
+
+If no interactions are found, return empty arrays/objects.
+
+TEXT TO ANALYZE:
+${content}`;
+
+  const rawResponse = await generateAIContent(prompt, prisma);
+  try {
+    return JSON.parse(cleanJsonResponse(rawResponse)) as InteractionAnalysisResponse;
+  } catch (e) {
+    return { character_interactions: [], dialogue_count: {} };
+  }
+}
+
+export async function analyzeThemes(
+  chapters: { title: string; content: string }[],
+  prisma: PrismaClient
+): Promise<ThemeAnalysisResponse> {
+  const chapterText = chapters
+    .map(c => `Chapter: ${c.title}\n${c.content}`)
+    .join('\n\n---\n\n');
+
+  const prompt = `Analyze the following chapter summaries/content. Identify the 3-6 primary themes (e.g., "Betrayal", "Redemption", "Loss", "Power"). For each theme, list the chapter titles where it appears.
+
+Return ONLY a JSON object with no markdown fences, using exactly this structure:
+{
+  "themes": {
+    "Betrayal": ["Chapter 1", "Chapter 3"],
+    "Redemption": ["Chapter 2"]
+  }
+}
+
+CHAPTERS:
+${chapterText}`;
+
+  const rawResponse = await generateAIContent(prompt, prisma);
+  try {
+    return JSON.parse(cleanJsonResponse(rawResponse)) as ThemeAnalysisResponse;
+  } catch (e) {
+    return { themes: {} };
+  }
+}
+
+// ======================= Pacing Analysis =======================
+
+export interface PacingScore {
+  chapter: string;
+  intensity: number;
+}
+
+export async function analyzePacing(
+  chapters: { title: string; content: string }[],
+  prisma: PrismaClient
+): Promise<PacingScore[]> {
+  if (chapters.length === 0) return [];
+  
+  const chapterText = chapters
+    .map(c => `Chapter: ${c.title}\n${c.content}`)
+    .join('\n\n---\n\n');
+
+  const prompt = `Analyze the narrative pacing and intensity of the following chapters. For each chapter, calculate an "intensity" score from 1 to 10 based on action density, dialogue-to-narrative ratio, and sentence length variability (faster pacing/higher action = higher score).
+
+Return ONLY a JSON array with no markdown fences, using exactly this structure:
+[
+  { "chapter": "Chapter 1", "intensity": 4 },
+  { "chapter": "Chapter 2", "intensity": 8 }
+]
+
+If no chapters are provided, return an empty array [].
+
+CHAPTERS:
+${chapterText}`;
+
+  const rawResponse = await generateAIContent(prompt, prisma);
+  try {
+    return JSON.parse(cleanJsonResponse(rawResponse)) as PacingScore[];
+  } catch (e) {
+    return [];
+  }
+}
+
+// ======================= Beta Reader Feedback =======================
+
+export interface BetaReaderFeedback {
+  strengths: string[];
+  weaknesses: string[];
+  emotional_impact: string;
+  pacing_notes: string;
+}
+
+export async function getBetaReaderFeedback(content: string, prisma: PrismaClient): Promise<BetaReaderFeedback> {
+  const prompt = `Act as an honest, constructive beta reader for a novel. Analyze the following chapter or scene. Provide actionable feedback without spoiling any future plot points.
+
+Return ONLY a JSON object with no markdown fences, using exactly this structure:
+{
+  "strengths": ["Point 1", "Point 2"],
+  "weaknesses": ["Point 1", "Point 2"],
+  "emotional_impact": "Summary of how this scene feels to a reader.",
+  "pacing_notes": "Thoughts on the speed and flow of the scene."
+}
+
+TEXT:
+${content}`;
+
+  const rawResponse = await generateAIContent(prompt, prisma);
+  try {
+    return JSON.parse(cleanJsonResponse(rawResponse)) as BetaReaderFeedback;
+  } catch (e) {
+    return { strengths: [], weaknesses: [], emotional_impact: 'Failed to analyze properly.', pacing_notes: 'Failed to analyze properly.' };
+  }
+}
+
+// ======================= Loose End Scanner =======================
+
+export interface LooseEnd {
+  description: string;
+  related_chapters: string[];
+  severity: 'low' | 'medium' | 'high';
+}
+
+export async function scanForLooseEnds(chapters: { title: string; content: string }[], prisma: PrismaClient): Promise<LooseEnd[]> {
+  if (chapters.length === 0) return [];
+  
+  const chapterText = chapters
+    .map(c => `Chapter: ${c.title}\n${c.content}`)
+    .join('\n\n---\n\n');
+
+  const prompt = `Act as an expert developmental editor. Analyze the narrative flow across these consecutive chapters to identify "loose ends"—plot threads, character promises, or mysteries that are introduced but appear to be unresolved or forgotten based on the provided text.
+
+Return ONLY a JSON array with no markdown fences, using exactly this structure:
+[
+  { 
+    "description": "The mysterious key Alex found in chapter 1 is never mentioned again.", 
+    "related_chapters": ["Chapter 1"],
+    "severity": "medium" 
+  }
+]
+
+If there are no loose ends, return an empty array [].
+
+CHAPTERS:
+${chapterText}`;
+
+  const rawResponse = await generateAIContent(prompt, prisma);
+  try {
+    return JSON.parse(cleanJsonResponse(rawResponse)) as LooseEnd[];
+  } catch (e) {
+    return [];
+  }
+}
+
+
+// ======================= Note Linking =======================
+
+export interface LinkSuggestion {
+  targetId: number;
+  targetTitle: string;
+  targetType: string;
+  linkType: string;
+  reason: string;
+}
+
+export async function suggestLinks(
+  noteId: number,
+  prisma: PrismaClient
+): Promise<LinkSuggestion[]> {
+  const sourceNote = await prisma.note.findUnique({ where: { id: noteId } });
+  if (!sourceNote) throw new Error('Note not found');
+
+  const otherNotes = await prisma.note.findMany({
+    where: { bookId: sourceNote.bookId, id: { not: noteId } },
+    select: { id: true, title: true, type: true, content: true },
+  });
+
+  if (otherNotes.length === 0) return [];
+
+  const noteList = otherNotes
+    .map(n => `ID: ${n.id} | Type: ${n.type} | Title: "${n.title}" | Preview: "${n.content.slice(0, 100)}"`)
+    .join('\n');
+
+  const prompt = `You are a literary analyst. Analyze the source note and determine which of the available notes are meaningfully referenced, mentioned, or closely related.
+
+SOURCE NOTE (ID: ${sourceNote.id}, Type: ${sourceNote.type}, Title: "${sourceNote.title}"):
+${sourceNote.content.slice(0, 800)}
+
+AVAILABLE NOTES:
+${noteList}
+
+Return ONLY a JSON array (no markdown fences) of suggestions. Each item must have:
+{ "targetId": <number>, "targetTitle": "<string>", "targetType": "<string>", "linkType": "<character_mention|plot_reference|thematic|related>", "reason": "<one sentence explaining the connection>" }
+
+Only include notes that are genuinely related. Return an empty array [] if none are relevant.`;
+
+  const rawResponse = await generateAIContent(prompt, prisma);
+  
+  try {
+    const raw = cleanJsonResponse(rawResponse);
+    const suggestions = JSON.parse(raw) as LinkSuggestion[];
+    return suggestions.filter(s => otherNotes.some(n => n.id === s.targetId));
+  } catch (e) {
+    return [];
+  }
+}

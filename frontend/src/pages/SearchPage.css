@@ -1,0 +1,127 @@
+/* ================================
+   Search Page
+   ================================ */
+.search-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.search-header { margin-bottom: var(--space-2); }
+
+.search-title {
+  font-size: var(--text-3xl);
+  font-family: var(--font-display);
+  background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-accent-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.search-subtitle { margin-top: 4px; }
+
+/* Search Form */
+.search-form {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.search-input-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.search-main-input { flex: 1; font-size: var(--text-base); }
+
+.search-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Results meta */
+.search-results-meta {
+  padding: 0 var(--space-1);
+}
+
+/* Book Group */
+.search-book-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.search-book-heading {
+  font-size: var(--text-base);
+  font-family: var(--font-display);
+  color: var(--color-text-secondary);
+  padding-left: var(--space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: var(--text-xs);
+}
+
+/* Result Cards */
+.search-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.search-result-card {
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  border-left: 3px solid transparent;
+}
+
+.search-result-card:hover {
+  transform: translateX(3px);
+}
+
+.search-result-card.note-card--character { border-left-color: hsl(258, 70%, 65%); }
+.search-result-card.note-card--chapter   { border-left-color: hsl(195, 70%, 55%); }
+.search-result-card.note-card--detail    { border-left-color: hsl(38, 80%, 58%); }
+
+.search-result-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.search-result-title {
+  font-size: var(--text-base);
+  font-family: var(--font-display);
+  color: var(--color-text-primary);
+}
+
+.search-result-excerpt {
+  line-height: 1.5;
+}
+
+/* Empty State */
+.search-empty-state {
+  text-align: center;
+  padding: var(--space-16);
+}
+
+/* Count badge on filter tabs */
+.filter-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-elevated);
+  font-size: 11px;
+  padding: 0 5px;
+  margin-left: var(--space-1);
+}

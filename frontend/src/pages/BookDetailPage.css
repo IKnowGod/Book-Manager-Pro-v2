@@ -1,0 +1,204 @@
+.book-detail { animation: fadeIn var(--transition-normal) both; }
+
+.loading-center { display: flex; justify-content: center; padding: var(--space-16); }
+
+.book-detail-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+}
+
+.book-detail-title {
+  font-size: var(--text-3xl);
+  background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-accent-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.book-detail-meta { color: var(--color-text-muted); font-size: var(--text-sm); margin-top: 4px; }
+
+.note-filter-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.filter-tab {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-tab:hover { border-color: var(--color-border-hover); color: var(--color-text-primary); }
+.filter-tab.active {
+  background: var(--color-accent-glow);
+  color: var(--color-accent-primary);
+  border-color: hsla(258, 70%, 65%, 0.3);
+}
+
+.notes-empty {
+  padding: var(--space-10);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text-secondary);
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.note-card {
+  padding: var(--space-5);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  position: relative;
+}
+
+.note-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.note-card--character:hover { box-shadow: 0 8px 30px hsla(258,70%,65%,0.15); }
+.note-card--chapter:hover   { box-shadow: 0 8px 30px hsla(195,70%,55%,0.15); }
+.note-card--detail:hover    { box-shadow: 0 8px 30px hsla(38,80%,58%,0.15); }
+
+.note-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.note-card-icon { font-size: var(--text-lg); }
+
+.note-card-title {
+  font-size: var(--text-base);
+  font-family: var(--font-display);
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.note-card-excerpt {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  flex: 1;
+  line-height: 1.5;
+}
+
+.note-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+
+.note-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.note-card-delete {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.note-card:hover .note-card-delete { opacity: 1; }
+
+/* List View Styles */
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.notes-list .note-card {
+  flex-direction: row;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-4);
+}
+
+.notes-list .note-card-header {
+  width: 130px;
+  flex-shrink: 0;
+}
+
+.notes-list .note-card-title {
+  width: 220px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.notes-list .note-card-excerpt {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.notes-list .note-card-footer {
+  margin-top: 0;
+  width: auto;
+  flex-shrink: 0;
+  gap: var(--space-4);
+}
+/* Section Styles */
+.note-section {
+  margin-bottom: var(--space-10);
+}
+
+.note-section:last-child {
+  margin-bottom: 0;
+}
+
+.note-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.note-section-title {
+  font-size: var(--text-xl);
+  font-family: var(--font-display);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.note-section-icon {
+  font-size: var(--text-2xl);
+}
+
+.note-section-count {
+  font-size: var(--text-sm);
+  background: var(--color-bg-elevated);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+}
+
+.notes-container {
+  display: flex;
+  flex-direction: column;
+}
