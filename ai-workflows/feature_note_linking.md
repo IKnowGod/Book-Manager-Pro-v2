@@ -39,7 +39,7 @@ Implement an intelligent system for automatically suggesting links between notes
   1. Fetch the source note's title and content.
   2. Fetch all other notes in the same book (titles + first 200 chars of content).
   3. Prompt Gemini: "Given the source note content, identify which of the following notes are mentioned or closely referenced. Return a JSON array of: `{ targetTitle: string, linkType: string, reason: string }`".
-  4. Match returned titles to actual note IDs.
+  4. Match returned titles to actual note IDs using flexible matching (supporting partial first/last names).
   5. Return structured suggestions.
 
 ### L3. Backend — Note Linking Endpoints

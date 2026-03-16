@@ -6,6 +6,7 @@ import {
 import { api } from '../api/client';
 import type { Note, InteractionAnalysisResult, ThemeAnalysisResult, PacingScore, LooseEnd } from '../types';
 import ChapterSelector from '../components/ChapterSelector';
+import { useToast } from '../context/ToastContext';
 import './AnalysisPage.css';
 
 type AnalysisTab = 'interactions' | 'themes' | 'pacing' | 'loose-ends';
@@ -18,6 +19,7 @@ const COLORS = [
 export default function AnalysisPage() {
   const { bookId } = useParams<{ bookId: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [tab, setTab] = useState<AnalysisTab>('interactions');
   const [selectedNoteIds, setSelectedNoteIds] = useState<number[]>([]);
 
@@ -70,8 +72,9 @@ export default function AnalysisPage() {
     try {
       const result = await api.books.analyzeInteractions(bookId, customContent);
       setInteractionResult(result);
+      showToast('Interaction analysis complete!');
     } catch (err: unknown) {
-      setInteractionError(err instanceof Error ? err.message : 'AI service error');
+      showToast(err instanceof Error ? err.message : 'AI service error', 'error');
     } finally {
       setInteractionLoading(false);
     }
@@ -84,8 +87,9 @@ export default function AnalysisPage() {
     try {
       const result = await api.books.analyzeThemes(bookId, selectedNoteIds.length > 0 ? selectedNoteIds : undefined);
       setThemeResult(result);
+      showToast('Theme analysis complete!');
     } catch (err: unknown) {
-      setThemeError(err instanceof Error ? err.message : 'AI service error');
+      showToast(err instanceof Error ? err.message : 'AI service error', 'error');
     } finally {
       setThemeLoading(false);
     }
@@ -98,8 +102,9 @@ export default function AnalysisPage() {
     try {
       const result = await api.books.analyzePacing(bookId, selectedNoteIds.length > 0 ? selectedNoteIds : undefined);
       setPacingResult(result);
+      showToast('Pacing analysis complete!');
     } catch (err: unknown) {
-      setPacingError(err instanceof Error ? err.message : 'AI service error');
+      showToast(err instanceof Error ? err.message : 'AI service error', 'error');
     } finally {
       setPacingLoading(false);
     }
@@ -112,8 +117,9 @@ export default function AnalysisPage() {
     try {
       const result = await api.books.analyzeLooseEnds(bookId, selectedNoteIds.length > 0 ? selectedNoteIds : undefined);
       setLooseEndsResult(result);
+      showToast('Plot hole scan complete!');
     } catch (err: unknown) {
-      setLooseEndsError(err instanceof Error ? err.message : 'AI service error');
+      showToast(err instanceof Error ? err.message : 'AI service error', 'error');
     } finally {
       setLooseEndsLoading(false);
     }

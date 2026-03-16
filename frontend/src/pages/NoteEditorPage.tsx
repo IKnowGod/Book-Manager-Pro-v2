@@ -4,7 +4,8 @@ import { api } from '../api/client';
 import type { Note, Tag, Inconsistency, TagSuggestionResult, Folder, BetaReaderFeedback } from '../types';
 import RelatedNotesPanel from '../components/RelatedNotesPanel';
 import VersionHistoryPanel from '../components/VersionHistoryPanel';
-import { Modal } from '../components/Modal';
+import { NoteChecklist } from '../components/NoteChecklist';
+import { useToast } from '../context/ToastContext';
 import './NoteEditorPage.css';
 
 const NOTE_TYPES = ['character', 'chapter', 'detail'] as const;
@@ -31,7 +32,7 @@ export default function NoteEditorPage() {
   const [tagSuggestions, setTagSuggestions] = useState<TagSuggestionResult | null>(null);
   const [betaFeedback, setBetaFeedback] = useState<BetaReaderFeedback | null>(null);
   const [inconsistencies, setInconsistencies] = useState<Inconsistency[]>([]);
-  const [showSavedModal, setShowSavedModal] = useState(false);
+  const { showToast } = useToast();
 
   // Inconsistency highlight — populated from URL params when navigating from the Issues page
   const highlightText = searchParams.get('highlight') ?? '';
@@ -93,8 +94,10 @@ export default function NoteEditorPage() {
         window.dispatchEvent(new CustomEvent('refresh-folders'));
         setNote(updated);
         setInconsistencies(updated.inconsistencies);
-        setShowSavedModal(true);
+        showToast('Changes saved successfully!');
       }
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Failed to save', 'error');
     } finally {
       setSaving(false);
     }
@@ -295,6 +298,9 @@ export default function NoteEditorPage() {
 
         {/* Right: AI Panel */}
         <aside className="note-ai-panel">
+          {/* Checklist */}
+          {note && <NoteChecklist note={note} />}
+
           {/* Tags */}
           <section className="ai-section glass-card">
             <h3 className="ai-section-title">🏷️ Tags</h3>
@@ -479,17 +485,6 @@ export default function NoteEditorPage() {
         </aside>
       </div>
 
-      <Modal
-        isOpen={showSavedModal}
-        onClose={() => setShowSavedModal(false)}
-        title="Success"
-        footer={<button className="btn btn-primary w-full" onClick={() => setShowSavedModal(false)}>OK</button>}
-      >
-        <div className="flex flex-col items-center py-4">
-          <div className="text-4xl mb-4">✅</div>
-          <p className="text-lg">Changes saved successfully!</p>
-        </div>
-      </Modal>
     </div>
   );
 }

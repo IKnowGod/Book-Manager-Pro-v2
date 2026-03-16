@@ -94,6 +94,17 @@ export async function checkConsistency(
   const note = await prisma.note.findUnique({ where: { id: noteId } });
   if (!note) throw new Error('Note not found');
 
+  // Fetch ALL character and detail notes from the same book to establish a "Master List" for name verification
+  const allReferenceNotes = await prisma.note.findMany({
+    where: { 
+      bookId: note.bookId, 
+      type: { in: ['character', 'detail'] } 
+    },
+    select: { id: true, title: true, type: true }
+  });
+
+  const masterList = allReferenceNotes.map(n => `- ${n.title} (${n.type})`).join('\n');
+
   // Build a list of context notes (chapters and other notes that mention this note's subject)
   const contextNotes: { id: number; title: string; content: string }[] = [];
 
@@ -108,10 +119,10 @@ export async function checkConsistency(
     const rTitleLower = rNote.title.trim().toLowerCase();
 
     // Condition 1: The other note mentions THIS note's title (useful if this is a character/detail)
-    const mentionsThis = titleLower.length > 0 && rNote.content.toLowerCase().includes(titleLower);
+    const mentionsThis = isNoteMentioned(rNote.content, note.title, note.type);
 
     // Condition 2: THIS note mentions the other note's title (useful if this is a chapter mentioning characters/details)
-    const mentionedByThis = rTitleLower.length > 0 && newContentLower.includes(rTitleLower);
+    const mentionedByThis = isNoteMentioned(newContent, rNote.title, rNote.type);
 
     if (mentionsThis || mentionedByThis) {
       contextNotes.push({ id: rNote.id, title: rNote.title, content: rNote.content });
@@ -125,7 +136,10 @@ export async function checkConsistency(
       ).join('\n\n---\n\n')
     : `Existing content of note '${note.title}':\n${note.content}`;
 
-  const prompt = `You are a meticulous continuity editor for a novel. Your task is to find contradictions between established facts and new information.
+  const prompt = `You are a meticulous continuity editor for a novel. Your task is to find contradictions between established facts and new information, AND to catch misspellings of established character or detail names.
+
+MASTER LIST OF ESTABLISHED ENTITIES (Names and Titles):
+${masterList}
 
 ESTABLISHED CONTEXT (each note is labeled with its NOTE_ID):
 ${historicalContent}
@@ -133,16 +147,19 @@ ${historicalContent}
 NEW INFORMATION being added to the note "${note.title}":
 ${newContent}
 
-Analyze the new information and identify any contradictions or inconsistencies with the established context. For each issue found:
-- "description": clearly describe the contradiction
-- "offending_text": the exact phrase from the NEW INFORMATION that contradicts existing facts
-- "source_note_id": the NOTE_ID integer from the context note that contains the conflicting information (e.g., if [NOTE_ID:42] contains the contradicting text, return 42). If you cannot identify a specific note, omit this field.
+Analyze the new information and identify any contradictions or inconsistencies. 
+CRITICAL: Check every name mentioned in the NEW INFORMATION against the MASTER LIST. If a name is misspelled (e.g., "Demitre" instead of "Demitri"), flag it.
+
+For each issue found:
+- "description": clearly describe the contradiction or misspelling (e.g., "Potential misspelling: 'Demitre' appears to be 'Demitri Kovalenko' from the master list.")
+- "offending_text": the exact phrase or name from the NEW INFORMATION that is incorrect
+- "source_note_id": the NOTE_ID integer from the context note that contains the conflicting information. If it's a name misspelling, use the NOTE_ID of the corresponding character note if possible.
 
 Return ONLY a JSON object with a single key "inconsistencies" containing an array. If there are no issues, return an empty array.
 
 Example:
 { "inconsistencies": [
-  { "description": "Captain Dan is described as having brown eyes here, but Chapter 1 states his eyes are green.", "offending_text": "he has brown eyes", "source_note_id": 15 }
+  { "description": "Potential misspelling: 'Demitre' should likely be 'Demitri Kovalenko'.", "offending_text": "Demitre", "source_note_id": 19 }
 ] }`;
 
   const rawResponse = await generateAIContent(prompt, prisma);
@@ -193,6 +210,36 @@ Example:
   return parsed;
 }
 
+/**
+ * Helper to determine if a note's title is mentioned in content.
+ * For characters, it checks for partial name matches (e.g. "Savannah" matches "Savannah Parker").
+ */
+export function isNoteMentioned(content: string, noteTitle: string, noteType: string): boolean {
+  const contentLower = content.toLowerCase();
+  const titleLower = noteTitle.trim().toLowerCase();
+  
+  if (!titleLower || titleLower.length < 3) return false;
+
+  // 1. Exact Title Match
+  if (contentLower.includes(titleLower)) return true;
+
+  // 2. Character-Specific Partial Matching (First/Last names)
+  if (noteType === 'character') {
+    const parts = titleLower.split(/\s+/).filter(p => p.length >= 3);
+    // Skip common titles from being the SOLE trigger
+    const commonTitles = ['commander', 'captain', 'doctor', 'professor', 'agent', 'officer', 'member'];
+    
+    for (const part of parts) {
+      if (commonTitles.includes(part)) continue;
+      // Check for word boundary to avoid partial matches like "Dan" in "Danger"
+      const regex = new RegExp(`\\b${part}\\b`, 'i');
+      if (regex.test(contentLower)) return true;
+    }
+  }
+
+  return false;
+}
+
 export async function suggestTags(
   noteId: number,
   prisma: PrismaClient
@@ -210,7 +257,13 @@ export async function suggestTags(
     .map((t) => t.name)
     .filter(name => !currentTagNames.has(name.toLowerCase()));
 
-  const prompt = `You are an intelligent librarian and archivist. Your task is to analyze a piece of text and suggest tags for it. Here is a master list of all available tags: ${JSON.stringify(existingTagNames)}. Here is the content of a note: '${note.content}'. Please perform two tasks:\n  1.  **Match Existing**: Identify which tags from the master list are the most relevant to the note. Do not suggest tags that are not in the master list.\n  2.  **Suggest New**: Suggest 1-2 brand new, relevant, and concise tags that are not in the master list and would be a good addition.\n  Return your response as a single JSON object with two keys: 'matched_tags' and 'new_suggestions'. Each key should hold an array of strings. For example: { "matched_tags": ["Character Introduction", "Plot Point"], "new_suggestions": ["Secret Alliance"] }`;
+  const prompt = `You are an intelligent librarian and archivist. Your task is to analyze a piece of text and suggest tags for it. Here is a master list of all available tags: ${JSON.stringify(existingTagNames)}. Here is the content of a note: '${note.content}'. Please perform two tasks:
+  1.  **Match Existing**: Identify which tags from the master list are the most relevant to the note. Do not suggest tags that are not in the master list.
+  2.  **Suggest New**: Suggest 1-2 brand new, relevant, and concise tags that are not in the master list and would be a good addition.
+  
+  CRITICAL: Look for mentioned characters or locations even if only their first or last names are used (e.g., if you see "Savannah", and "Savannah Parker" is in the tag list, match it).
+  
+  Return your response as a single JSON object with two keys: 'matched_tags' and 'new_suggestions'. Each key should hold an array of strings. For example: { "matched_tags": ["Character Introduction", "Plot Point"], "new_suggestions": ["Secret Alliance"] }`;
 
   const rawResponse = await generateAIContent(prompt, prisma);
   let parsed: TagSuggestionResponse = { matched_tags: [], new_suggestions: [] };
@@ -242,7 +295,7 @@ export async function suggestTags(
     const otherContentLower = otherNote.content.toLowerCase();
 
     // Condition 1: CURRENT note mentions OTHER note (e.g. Chapter mentions Character)
-    const currentMentionsOther = contentLower.includes(otherTitleLower);
+    const currentMentionsOther = isNoteMentioned(note.content, otherNote.title, otherNote.type);
     
     // Condition 2: OTHER note mentions CURRENT note (e.g. Character mentioned in Chapter)
     // Only do this if one of them is a chapter and the other is a character/detail, or both characters.
@@ -253,10 +306,11 @@ export async function suggestTags(
       (note.type === 'chapter' && otherNote.type === 'character') ||
       (note.type === 'character' && otherNote.type === 'character')
     ) {
-      otherMentionsCurrent = titleLower.length > 0 && otherContentLower.includes(titleLower);
+      otherMentionsCurrent = isNoteMentioned(otherNote.content, note.title, note.type);
     }
 
     if (currentMentionsOther || otherMentionsCurrent) {
+      const otherTitleLower = otherNote.title.toLowerCase();
       const existingTagMatch = existingTagNames.find(
         (t) => t.toLowerCase() === otherTitleLower
       );
@@ -487,7 +541,7 @@ export async function analyzeThreads(
     .join('\n\n---\n\n');
 
   const prompt = `Analyze these consecutive chapters. Group them into 3-5 distinct "Narrative Threads" (e.g., "The Rebellion", "The Royal Spies", "Maya's Journey"). 
-For each thread, identify which chapters belong to it, provide a 1-sentence scene summary for that thread in that chapter, and assign an "intensity" (1-10) for that thread's prominence in that chapter.
+For each thread, identify which chapters belong to it, identify the primary **location** of the thread in that chapter, provide a 1-sentence scene summary for that thread in that chapter, and assign an "intensity" (1-10) for that thread's prominence in that chapter.
 
 Return ONLY a JSON object using exactly this structure:
 {
@@ -495,7 +549,12 @@ Return ONLY a JSON object using exactly this structure:
     {
       "threadName": "The Rebellion",
       "nodes": [
-        { "chapterTitle": "Chapter 1", "intensity": 8, "summary": "The rebel cells are introduced." }
+        { 
+          "chapterTitle": "Chapter 1", 
+          "intensity": 8, 
+          "location": "The Hidden Base",
+          "summary": "The rebel cells are introduced." 
+        }
       ]
     }
   ]
@@ -550,7 +609,9 @@ AVAILABLE NOTES:
 ${noteList}
 
 Return ONLY a JSON array (no markdown fences) of suggestions. Each item must have:
-{ "targetId": <number>, "targetTitle": "<string>", "targetType": "<string>", "linkType": "<character_mention|plot_reference|thematic|related>", "reason": "<one sentence explaining the connection>" }
+{ "targetId": <number>, "targetTitle": "<string>", "targetType": "<string>", "linkType": "<character_mention|plot_reference|thematic|related>", "reason": "<one sentence explaining the connection, explicitly using the NAMES and TITLES of the notes involved (e.g., 'Commander Demitri is mentioned briefly in this scene.')>" }
+
+CRITICAL: Identify characters even if only their first or last names are used (e.g., "Savannah" refers to "Savannah Parker").
 
 Only include notes that are genuinely related. Return an empty array [] if none are relevant.`;
 
@@ -578,14 +639,16 @@ Only include notes that are genuinely related. Return an empty array [] if none 
     const otherTitleLower = otherTitle.toLowerCase();
     
     // Check for explicit mention in content
-    if (sourceContentLower.includes(otherTitleLower)) {
+    if (isNoteMentioned(sourceNote.content, other.title, other.type)) {
       const existing = suggestionMap.get(other.id);
       
       if (existing) {
         // AI already found it, but let's ensure the type is 'character_mention' if it's a character
         if (other.type === 'character') {
           existing.linkType = 'character_mention';
-          existing.reason = `Direct mention of "${other.title}" found in text.`;
+          if (!existing.reason.includes(other.title)) {
+            existing.reason = `Direct mention of "${other.title}" found in text.`;
+          }
         }
       } else {
         // AI missed it, add deterministic suggestion

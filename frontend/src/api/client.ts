@@ -23,6 +23,8 @@ export const api = {
     update: (id: string, title: string) => request<Book>(`/books/${id}`, { method: 'PUT', body: JSON.stringify({ title }) }),
     delete: (id: string) => request<{ message: string }>(`/books/${id}`, { method: 'DELETE' }),
     deleteHistory: (id: string) => request<{ message: string }>(`/books/${id}/history`, { method: 'DELETE' }),
+    clearTags: (id: string) => request<{ message: string }>(`/books/${id}/tags`, { method: 'DELETE' }),
+    clearAI: (id: string) => request<{ message: string }>(`/books/${id}/ai-associations`, { method: 'DELETE' }),
     stats: (id: string) => request<BookStats>(`/books/${id}/stats`),
     analyzeInteractions: (id: string, content: string) =>
       request<InteractionAnalysisResult>(`/books/${id}/analyze-interactions`, {

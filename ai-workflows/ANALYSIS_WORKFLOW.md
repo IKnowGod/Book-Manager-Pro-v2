@@ -31,5 +31,9 @@ Finally, head to the **Analysis Hub** to see the big picture.
 *   **Why**: Since you've already established the "ground truth" through tagging and linking, the AI reports will be much more accurate and grounded in your specific story facts.
 
 ---
+> [!NOTE]
+> **UI Guidance**: The application now includes a dynamic **Analysis Journey** guide at the top of the book home page and per-note checklists in the editor sidebar to help you track these steps.
+
+---
 > [!TIP]
 > **Deterministic vs AI**: Always prioritize using the "Shared Tags" and "Mentioned in Text" indicators. These are grounded in your actual text and are more reliable than one-off AI guesses.

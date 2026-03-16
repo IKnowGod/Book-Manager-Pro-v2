@@ -70,6 +70,10 @@ export interface Note {
   inconsistencies: Inconsistency[];
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    sourceLinks: number;
+    targetLinks: number;
+  };
 }
 
 export interface ConsistencyCheckResult {
@@ -156,6 +160,7 @@ export interface NoteVersion {
 export interface ThreadNode {
   chapterTitle: string;
   intensity: number;
+  location: string;
   summary: string;
 }
 

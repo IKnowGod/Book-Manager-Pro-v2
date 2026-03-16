@@ -6,6 +6,7 @@ import {
 import { api } from '../api/client';
 import type { Note } from '../types';
 import ChapterSelector from '../components/ChapterSelector';
+import { isNoteMentioned } from '../utils/mentions';
 import './ChapterTimelinePage.css';
 
 type ChartTab = 'characters' | 'tags';
@@ -75,7 +76,7 @@ export default function ChapterTimelinePage() {
       };
       characters.forEach(char => {
         // Character is present if name appears in text OR character-name tag is present on chapter
-        const textMention = chapter.content.toLowerCase().includes(char.title.toLowerCase());
+        const textMention = isNoteMentioned(chapter.content, char.title, char.type);
         const tagMention = chapter.tags.some(t => t.name.toLowerCase() === char.title.toLowerCase());
         row[char.title] = (textMention || tagMention) ? 1 : 0;
       });

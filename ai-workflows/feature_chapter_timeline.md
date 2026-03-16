@@ -32,8 +32,8 @@ Provide a visual representation of character and tag occurrences across chapters
 - **Route**: `/books/:bookId/timeline`
 - **Data processing**:
   - Fetch all notes for the book.
-  - For each chapter note: count how many character notes share at least one matching tag with it.
-  - Build a dataset of `{ chapter: "Chapter 1", characterA: 2, characterB: 1, ... }` for the character chart.
+  - For each chapter note: detect which character notes are mentioned in the content (using flexible matching for partial names like "Damien" for "Damien Parker") or share tags with it.
+  - Build a dataset of `{ chapter: "Chapter 1", "Damien Parker": 1, ... }` for the character chart.
   - Build a dataset of `{ chapter: "Chapter 1", tagName: count, ... }` for the tag chart.
 - **Charts (using Recharts)**:
   1. **Character Presence Chart** — `BarChart` showing which characters (character notes) are referenced across chapters. X-axis: chapter titles, Y-axis: occurrence count per character.

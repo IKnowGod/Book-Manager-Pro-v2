@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { Book, BookStats } from '../types';
 import { Modal } from '../components/Modal';
+import { useToast } from '../context/ToastContext';
 import './SettingsPage.css';
 
 export default function SettingsPage() {
   const { bookId } = useParams<{ bookId: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [book, setBook] = useState<Book | null>(null);
   const [stats, setStats] = useState<BookStats | null>(null);
@@ -43,6 +45,9 @@ export default function SettingsPage() {
     try {
       const updated = await api.books.update(bookId, titleDraft.trim());
       setBook(updated);
+      showToast('Book renamed successfully!');
+    } catch (err) {
+      showToast('Rename failed.', 'error');
     } finally {
       setSavingTitle(false);
       setEditingTitle(false);
@@ -180,11 +185,51 @@ export default function SettingsPage() {
                   onClick={async () => {
                     if (window.confirm('Are you sure you want to clear all revision history for this book?')) {
                       await api.books.deleteHistory(bookId!);
-                      alert('History cleared.');
+                      showToast('History cleared.');
                     }
                   }}
                 >
                   Clear History
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold">Clear All Tags</h4>
+                  <p className="text-xs text-muted">Remove all tag associations from notes in this book. Tags remain in the system.</p>
+                </div>
+                <button 
+                  className="btn btn-ghost btn-sm"
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to clear all tags from notes in this book?')) {
+                      await api.books.clearTags(bookId!);
+                      const s = await api.books.stats(bookId!);
+                      setStats(s);
+                      showToast('Tags cleared.');
+                    }
+                  }}
+                >
+                  Clear Tags
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold">Clear AI Associations</h4>
+                  <p className="text-xs text-muted">Remove all AI-detected inconsistencies and note-to-note links.</p>
+                </div>
+                <button 
+                  className="btn btn-ghost btn-sm"
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to clear all AI associations (links and inconsistencies)?')) {
+                      await api.books.clearAI(bookId!);
+                      const s = await api.books.stats(bookId!);
+                      setStats(s);
+                      showToast('AI associations cleared.');
+                    }
+                  }}
+                >
+                  Clear AI
                 </button>
               </div>
             </div>

@@ -12,9 +12,12 @@ import BookAssemblerPage from './pages/BookAssemblerPage';
 import ThreadTrackerPage from './pages/ThreadTrackerPage';
 import GlobalSettingsPage from './pages/GlobalSettingsPage';
 
+import { ToastProvider } from './context/ToastContext';
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/books" replace />} />
@@ -34,5 +37,6 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </ToastProvider>
   );
 }

@@ -85,7 +85,11 @@ router.get('/books/:bookId/notes', async (req: Request, res: Response) => {
 
     const notes = await prisma.note.findMany({
       where,
-      include: { tags: { include: { tag: true } }, inconsistencies: true },
+      include: { 
+        tags: { include: { tag: true } }, 
+        inconsistencies: true,
+        _count: { select: { sourceLinks: true, targetLinks: true } }
+      },
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -109,14 +113,22 @@ router.post('/books/:bookId/notes', async (req: Request, res: Response) => {
     const bookId = decodeId(req.params.bookId);
     let note = await prisma.note.create({
       data: { ...parsed.data, bookId },
-      include: { tags: { include: { tag: true } }, inconsistencies: true },
+      include: { 
+        tags: { include: { tag: true } }, 
+        inconsistencies: true,
+        _count: { select: { sourceLinks: true, targetLinks: true } }
+      },
     });
     
     await applyAutoTags(note.id, parsed.data.type, parsed.data.title, parsed.data.folderId || null, prisma);
     // refetch to get updated tags
     note = await prisma.note.findUniqueOrThrow({
       where: { id: note.id },
-      include: { tags: { include: { tag: true } }, inconsistencies: true },
+      include: { 
+        tags: { include: { tag: true } }, 
+        inconsistencies: true,
+        _count: { select: { sourceLinks: true, targetLinks: true } }
+      },
     });
     
     return res.status(201).json({ ...note, tags: note.tags.map((t) => t.tag) });
@@ -130,7 +142,11 @@ router.get('/notes/:id', async (req: Request, res: Response) => {
   try {
     const note = await prisma.note.findUnique({
       where: { id: parseInt(req.params.id) },
-      include: { tags: { include: { tag: true } }, inconsistencies: true },
+      include: { 
+        tags: { include: { tag: true } }, 
+        inconsistencies: true,
+        _count: { select: { sourceLinks: true, targetLinks: true } }
+      },
     });
     if (!note) return res.status(404).json({ error: 'Note not found' });
     return res.json({ ...note, tags: note.tags.map((t) => t.tag) });
@@ -184,7 +200,11 @@ router.put('/notes/:id', async (req: Request, res: Response) => {
     // Always refetch to get updated tags, folder data, and inconsistencies
     const updatedNote = await prisma.note.findUniqueOrThrow({
       where: { id: noteId },
-      include: { tags: { include: { tag: true } }, inconsistencies: true },
+      include: { 
+        tags: { include: { tag: true } }, 
+        inconsistencies: true,
+        _count: { select: { sourceLinks: true, targetLinks: true } }
+      },
     });
     
     return res.json({ ...updatedNote, tags: updatedNote.tags.map((t) => t.tag) });

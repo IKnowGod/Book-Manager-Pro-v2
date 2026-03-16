@@ -89,3 +89,10 @@ This file tracks the evolution of the project, covering key decisions, identifie
 - 2026-03-15: Migrated project to Node LTS 22+ and enforced version requirement in package data.
 - 2026-03-15: Fixed broken README.md header image by moving logo.png to a root assets folder and updating the reference.
 - 2026-03-16: Implemented Book Assembler & Export Manager (Feature 2), Note Revision History & Visual Diffs (Feature 6), Narrative Subway Map (Thread Tracker), and Targeted AI Analysis optimization.
+- 2026-03-16: Created ANALYSIS_WORKFLOW.md to document the recommended "Order of Operations" for AI tagging and analysis.
+- 2026-03-16: Implemented dynamic "Smart" Workflow Guide for book home and per-note checklists to visually guide users through the analysis process.
+- 2026-03-16: Improved Book Assembler UI spacing, refined card layouts, and added page description.
+- 2026-03-16: Added Maintenance buttons to Book Settings to clear all tags and AI associations (inconsistencies and links) for a book.
+- 2026-03-16: Refactored Narrative Subway Map with location-based convergence, Bezier curves, and dedicated legend.
+- 2026-03-16: Enhanced AI consistency check to catch misspelled character names using a Master List context.
+- 2026-03-16: Improved character mention detection to handle partial name matches (e.g. first/last names) with word-boundary checks across frontend (Timeline, Related Notes) and backend (Linking, Tagging, Consistency).

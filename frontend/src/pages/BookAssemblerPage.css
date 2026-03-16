@@ -5,40 +5,103 @@
 }
 
 .assembler-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--space-8);
+  margin-bottom: var(--space-10);
+  background: hsla(255, 255%, 255%, 0.02);
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+}
+
+.header-nav {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.title-group {
+  display: flex;
+  flex-direction: column;
 }
 
 .assembler-title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 800;
   margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.assembler-description {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  max-width: 800px;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
 }
 
 .assembler-layout {
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: var(--space-6);
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-8);
   flex: 1;
+}
+
+.assembler-card {
+  padding: var(--space-8) var(--space-10) var(--space-12);
+}
+
+.sidebar-card {
+  padding: var(--space-6);
+}
+
+.assembler-section-title {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+  color: var(--color-text-primary);
+}
+
+.assembler-section-description {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-8);
+}
+
+.sidebar-section-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-primary);
 }
 
 .chapter-dropzone {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .chapter-drag-item {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-6);
   background: hsla(255, 255%, 255%, 0.03);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   transition: all var(--transition-fast);
 }
 
@@ -88,7 +151,7 @@
 .assembler-stats {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .stat-row {

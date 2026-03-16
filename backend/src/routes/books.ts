@@ -135,6 +135,42 @@ router.delete('/books/:id/history', async (req: Request, res: Response) => {
   }
 });
 
+// DELETE /books/:id/tags
+router.delete('/books/:id/tags', async (req: Request, res: Response) => {
+  try {
+    const bookId = decodeId(req.params.id);
+    await prisma.tagsOnNotes.deleteMany({
+      where: { note: { bookId } }
+    });
+    return res.json({ message: 'Book tags cleared successfully' });
+  } catch {
+    return res.status(400).json({ error: 'Failed to clear tags' });
+  }
+});
+
+// DELETE /books/:id/ai-associations
+router.delete('/books/:id/ai-associations', async (req: Request, res: Response) => {
+  try {
+    const bookId = decodeId(req.params.id);
+    await prisma.$transaction([
+      prisma.inconsistency.deleteMany({
+        where: { note: { bookId } }
+      }),
+      prisma.noteLink.deleteMany({
+        where: {
+          OR: [
+            { sourceNote: { bookId } },
+            { targetNote: { bookId } }
+          ]
+        }
+      })
+    ]);
+    return res.json({ message: 'Book AI associations cleared successfully' });
+  } catch {
+    return res.status(400).json({ error: 'Failed to clear AI associations' });
+  }
+});
+
 // POST /books/:id/export
 router.post('/books/:id/export', async (req: Request, res: Response) => {
   try {

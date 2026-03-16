@@ -1,18 +1,26 @@
 .subway-map-container {
   width: 100%;
-  overflow-x: auto;
-  padding: var(--space-8);
-  background: hsla(0, 0%, 0%, 0.2);
-  border-radius: var(--radius-xl);
+  overflow: hidden;
+  position: relative;
+  background: hsla(240, 16%, 13%, 0.3);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
 }
 
+.subway-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--space-4);
+  scrollbar-width: thin;
+}
+
 .subway-map-svg {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+  display: block;
 }
 
 .subway-line {
-  transition: all var(--transition-normal);
+  transition: opacity var(--transition-normal), stroke-width var(--transition-normal);
+  filter: drop-shadow(0 0 4px rgba(0,0,0,0.5));
 }
 
 .subway-line:hover {
@@ -20,23 +28,20 @@
   stroke-width: 6;
 }
 
-.subway-node-group {
+.subway-node {
+  transition: r var(--transition-fast), stroke-width var(--transition-fast);
   cursor: pointer;
 }
 
-.subway-node {
-  transition: all var(--transition-fast);
-}
-
 .subway-node-group:hover .subway-node {
-  transform: scale(1.2);
-  fill: var(--color-bg-elevated);
+  r: 12;
+  stroke-width: 4;
 }
 
 .chapter-label {
   font-size: 10px;
-  font-weight: 600;
   fill: var(--color-text-muted);
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }

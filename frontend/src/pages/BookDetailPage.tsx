@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import type { Book, Note } from '../types';
 import { Modal } from '../components/Modal';
+import { WorkflowGuide } from '../components/WorkflowGuide';
 import './BookDetailPage.css';
 
 const NOTE_TYPES = ['character', 'chapter', 'detail'] as const;
@@ -162,6 +163,11 @@ export default function BookDetailPage() {
               </button>
             </div>
           </header>
+
+          <WorkflowGuide 
+            notes={notes} 
+            onNavigateToAnalysis={() => navigate(`/books/${bookId}/analysis`)} 
+          />
 
           <div className="flex items-center justify-between mb-6">
             <div className="note-filter-tabs" style={{ marginBottom: 0 }}>

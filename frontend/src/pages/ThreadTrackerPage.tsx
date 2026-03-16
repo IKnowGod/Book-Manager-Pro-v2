@@ -145,15 +145,35 @@ export default function ThreadTrackerPage() {
           />
 
           <section className="glass-card p-6">
-            <h2 className="text-lg font-semibold mb-1">
-              {mode === 'ai' ? 'Narrative Threads (AI)' : 'Tag Trajectories (Manual)'}
-            </h2>
-            <p className="text-muted text-xs mb-8">
-              {mode === 'ai' 
-                ? 'The map below visualizes how different plot threads and character groups move through your chapters using AI classification.' 
-                : 'The map below visualizes each tag as a continuous subway line passing through tagged chapters.'}
-              Click a station to jump to that chapter.
-            </p>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-xl font-bold">
+                  {mode === 'ai' ? 'Narrative Threads (AI)' : 'Tag Trajectories (Manual)'}
+                </h2>
+                <p className="text-muted text-sm max-width-600">
+                  {mode === 'ai' 
+                    ? 'Visualizing plot threads and character groups as they move through locations.' 
+                    : 'Visualizing each tag as a continuous subway line passing through locations.'}
+                  Click a station to jump to that chapter.
+                </p>
+              </div>
+
+              {/* Dedicated Legend */}
+              <div className="subway-legend">
+                <h3 className="text-xs font-bold uppercase mb-2 text-muted">Map Legend</h3>
+                <div className="flex flex-col gap-2">
+                  {(activeData?.threads || []).map((thread, i) => (
+                    <div key={`legend-${i}`} className="legend-item">
+                      <span 
+                        className="legend-line" 
+                        style={{ backgroundColor: ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#06b6d4'][i % 7] }} 
+                      />
+                      <span className="legend-text">{thread.threadName}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
             
             <ChapterSubwayMap 
               data={activeData?.threads || []} 
@@ -162,20 +182,37 @@ export default function ThreadTrackerPage() {
           </section>
 
           <footer className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="glass-card p-4">
-              <h3 className="text-sm font-semibold mb-2">💡 How to read this map</h3>
-              <ul className="text-xs text-muted space-y-2 list-disc pl-4">
-                <li><strong>Horizontal lines</strong> represent distinct narrative threads identified by AI.</li>
-                <li><strong>Stations (dots)</strong> are chapters where that thread is active.</li>
-                <li><strong>Dot size</strong> indicates the prominence of that thread in the chapter.</li>
-                <li><strong>Convergence</strong> happens when multiple threads appear in the same chapter.</li>
+            <div className="glass-card p-6">
+              <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
+                💡 How to read this map
+              </h3>
+              <ul className="text-xs text-muted space-y-3">
+                <li className="flex gap-2">
+                  <span className="text-primary">•</span>
+                  <span><strong>Horizontal Lines</strong> represent narrative threads or characters.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-primary">•</span>
+                  <span><strong>Stations (Dots)</strong> are chapter locations.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-primary">•</span>
+                  <span><strong>Convergence</strong> means multiple threads are in the SAME LOCATION.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-primary">•</span>
+                  <span><strong>Intensity</strong> is shown by dot size.</span>
+                </li>
               </ul>
             </div>
-            <div className="glass-card p-4">
-              <h3 className="text-sm font-semibold mb-2">🧵 Improving Accuracy</h3>
+            <div className="glass-card p-6">
+              <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
+                🧵 Improving Accuracy
+              </h3>
               <p className="text-xs text-muted leading-relaxed">
-                The AI identifies threads based on character presence and scene context. 
-                Ensure your chapter notes have clear titles and content for better mapping.
+                The AI identifies threads and locations based on scene context. 
+                Ensure your chapter notes have clear titles and content for better mapping. 
+                Focusing on **active dialogue** and **setting descriptions** helps the AI differentiate locations.
               </p>
             </div>
           </footer>

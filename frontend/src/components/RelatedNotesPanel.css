@@ -21,6 +21,10 @@
   color: var(--color-text-secondary);
 }
 
+.cursor-pointer { cursor: pointer; }
+.mb-0 { margin-bottom: 0 !important; }
+.last\:mb-0:last-child { margin-bottom: 0 !important; }
+
 /* Suggestions */
 .related-suggestions {
   background: hsla(258, 70%, 30%, 0.08);
@@ -114,9 +118,13 @@
 
 .related-reason {
   margin: 0;
-  white-space: nowrap;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
 }
 
 .related-link-delete {
@@ -136,6 +144,31 @@
   padding: 1px 6px;
 }
 
-.shared-tags-section {
+
+.shared-tags-content {
+  overflow: hidden;
   max-width: 100%;
+}
+
+.related-suggestions-header:hover .related-suggestions-label {
+  color: var(--color-accent-primary);
+  filter: brightness(1.2);
+}
+
+.related-suggestion-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden; /* Ensure text/tags don't bleed out */
+}
+
+/* Fix for the specific 'CVAS...' overflow seen in screenshot */
+.shared-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
 }

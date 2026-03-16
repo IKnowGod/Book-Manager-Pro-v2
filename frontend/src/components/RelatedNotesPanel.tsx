@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import type { Note, NoteLink, LinkSuggestion, Tag } from '../types';
+import { isNoteMentioned } from '../utils/mentions';
 import './RelatedNotesPanel.css';
 
 interface Props {
@@ -31,6 +32,7 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
   const [suggesting, setSuggesting] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showSharedTags, setShowSharedTags] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -128,7 +130,7 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
                 <div className="related-suggestion-text">
                   <span className="related-note-title">{s.targetTitle}</span>
                   <span className="badge related-link-type">{linkTypeLabel[s.linkType] ?? s.linkType}</span>
-                  {currentNote?.content?.toLowerCase().includes(s.targetTitle.toLowerCase()) && (
+                  {isNoteMentioned(currentNote?.content ?? '', s.targetTitle, s.targetType) && (
                     <span className="badge badge-success text-[9px]">Mentioned in Text</span>
                   )}
                   <p className="related-reason text-xs text-muted">{s.reason}</p>
@@ -158,39 +160,52 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
       {/* Shared Tags deterministic results */}
       {sharedTagNotes.length > 0 && (
         <div className="related-suggestions shared-tags-section mt-4">
-          <div className="related-suggestions-label">Shared Tags — deterministic association:</div>
-          {sharedTagNotes.map(sn => (
-            <div key={sn.id} className="related-suggestion-item shared-tag-item">
-              <div className="related-suggestion-info">
-                <span className="related-note-icon">{typeIcon(sn.type)}</span>
-                <div className="related-suggestion-text">
-                  <span className="related-note-title">{sn.title}</span>
-                  <div className="shared-tags-list flex flex-wrap gap-1 mt-1">
-                    {sn.sharedTags.map((tag: string) => (
-                      <span key={tag} className="badge text-[10px] bg-[rgba(255,255,255,0.05)]">{tag}</span>
-                    ))}
+          <div 
+            className="related-suggestions-header flex items-center justify-between cursor-pointer"
+            onClick={() => setShowSharedTags(!showSharedTags)}
+          >
+            <div className="related-suggestions-label mb-0">Shared Tags — deterministic ( {sharedTagNotes.length} )</div>
+            <button className="btn btn-sm btn-ghost p-0 px-2 opacity-60">
+              {showSharedTags ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          
+          {showSharedTags && (
+            <div className="shared-tags-content mt-2 animate-fade-in">
+              {sharedTagNotes.map(sn => (
+                <div key={sn.id} className="related-suggestion-item shared-tag-item mb-2 last:mb-0">
+                  <div className="related-suggestion-info">
+                    <span className="related-note-icon">{typeIcon(sn.type)}</span>
+                    <div className="related-suggestion-text">
+                      <span className="related-note-title">{sn.title}</span>
+                      <div className="shared-tags-list flex flex-wrap gap-1 mt-1">
+                        {sn.sharedTags.map((tag: string) => (
+                          <span key={tag} className="badge text-[10px] bg-[rgba(255,255,255,0.05)]">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="related-suggestion-actions">
+                    <button
+                      className="btn btn-sm"
+                      style={{ color: 'var(--color-accent-success)' }}
+                      onClick={() => handleApprove({
+                        targetId: sn.id,
+                        targetTitle: sn.title,
+                        targetType: sn.type as any,
+                        linkType: 'related',
+                        reason: `Shares tags: ${sn.sharedTags.join(', ')}`
+                      })}
+                      disabled={approvingId === sn.id}
+                      title="Create link"
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
-              </div>
-              <div className="related-suggestion-actions">
-                <button
-                  className="btn btn-sm"
-                  style={{ color: 'var(--color-accent-success)' }}
-                  onClick={() => handleApprove({
-                    targetId: sn.id,
-                    targetTitle: sn.title,
-                    targetType: sn.type as any,
-                    linkType: 'related',
-                    reason: `Shares tags: ${sn.sharedTags.join(', ')}`
-                  })}
-                  disabled={approvingId === sn.id}
-                  title="Create link"
-                >
-                  +
-                </button>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -217,7 +232,7 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
             <span className="related-note-title">{link.targetNote.title}</span>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted">{linkTypeLabel[link.linkType] ?? link.linkType}</span>
-              {currentNote?.content?.toLowerCase().includes(link.targetNote.title.toLowerCase()) && (
+              {isNoteMentioned(currentNote?.content ?? '', link.targetNote.title, link.targetNote.type) && (
                 <span className="badge badge-success text-[9px]">Mentioned in Text</span>
               )}
             </div>

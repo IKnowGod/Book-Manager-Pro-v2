@@ -24,6 +24,9 @@ Features for stitching chapters together, calculating manuscript stats, and expo
    - Show a persistent "Manuscript Stats" card on the assembly page.
 3. **Export Dialog**:
    - Modal to choose format and download the result.
+4. **UI Refinement**:
+   - Enhanced spacing, padding, and layout for a premium feel.
+   - Added a clear page description.
 
 ## Verification
 - Assemble a 3-chapter book.

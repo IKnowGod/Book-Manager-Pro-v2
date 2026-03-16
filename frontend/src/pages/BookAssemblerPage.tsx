@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { api } from '../api/client';
 import type { Note, Book } from '../types';
+import { useToast } from '../context/ToastContext';
 import './BookAssemblerPage.css';
 
 export default function BookAssemblerPage() {
@@ -12,6 +13,7 @@ export default function BookAssemblerPage() {
   const [chapters, setChapters] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!bookId) return;
@@ -45,8 +47,9 @@ export default function BookAssemblerPage() {
       a.download = `${book?.title || 'manuscript'}.md`;
       a.click();
       window.URL.revokeObjectURL(url);
+      showToast('Manuscript exported successfully!');
     } catch (err) {
-      alert('Export failed.');
+      showToast('Export failed.', 'error');
     } finally {
       setExporting(false);
     }
@@ -58,27 +61,39 @@ export default function BookAssemblerPage() {
   return (
     <div className="assembler-page animate-fade-in">
       <header className="assembler-header">
-        <button className="btn btn-ghost" onClick={() => navigate(`/books/${bookId}`)}>
-          ← Back
-        </button>
-        <div className="flex-1">
-          <h1 className="assembler-title">📚 Book Assembler</h1>
-          <p className="text-muted text-sm">{book?.title}</p>
+        <div className="header-nav">
+          <button className="btn btn-ghost" onClick={() => navigate(`/books/${bookId}`)}>
+            ← Back
+          </button>
         </div>
-        <button 
-          className="btn btn-primary" 
-          onClick={handleExport} 
-          disabled={exporting || chapters.length === 0}
-        >
-          {exporting ? 'Exporting...' : 'Export Manuscript (.md)'}
-        </button>
+        
+        <div className="header-content">
+          <div className="title-group">
+            <h1 className="assembler-title">📚 Book Assembler</h1>
+            <p className="text-muted text-sm">{book?.title}</p>
+          </div>
+          <p className="assembler-description">
+            Organize and sequence your chapters to prepare your final manuscript. 
+            Drag and drop chapters to reorder them, and export everything as a single Markdown file when you're ready.
+          </p>
+        </div>
+
+        <div className="header-actions">
+          <button 
+            className="btn btn-primary" 
+            onClick={handleExport} 
+            disabled={exporting || chapters.length === 0}
+          >
+            {exporting ? 'Exporting...' : 'Export Manuscript (.md)'}
+          </button>
+        </div>
       </header>
 
       <div className="assembler-layout">
         <div className="assembler-main">
-          <section className="glass-card p-6">
-            <h2 className="text-lg font-semibold mb-4">Chapter Sequence</h2>
-            <p className="text-muted text-sm mb-6">Drag and drop to reorder chapters for the final manuscript.</p>
+          <section className="glass-card assembler-card">
+            <h2 className="assembler-section-title">Chapter Sequence</h2>
+            <p className="assembler-section-description">Drag and drop to reorder chapters for the final manuscript.</p>
             
             {loading ? (
               <div className="py-12 text-center"><div className="spinner" /></div>
@@ -119,10 +134,9 @@ export default function BookAssemblerPage() {
             )}
           </section>
         </div>
-
         <aside className="assembler-sidebar">
-          <section className="glass-card p-4">
-            <h3 className="text-sm font-semibold mb-3">📈 Manuscript Stats</h3>
+          <section className="glass-card sidebar-card">
+            <h3 className="sidebar-section-title">📈 Manuscript Stats</h3>
             <div className="assembler-stats">
               <div className="stat-row">
                 <span>Total Chapters</span>
@@ -139,8 +153,8 @@ export default function BookAssemblerPage() {
             </div>
           </section>
 
-          <section className="glass-card p-4 mt-4">
-            <h3 className="text-sm font-semibold mb-3">💡 Tip</h3>
+          <section className="glass-card sidebar-card mt-4">
+            <h3 className="sidebar-section-title">💡 Tip</h3>
             <p className="text-xs text-muted leading-relaxed">
               The assembler combines all chapter notes into a single Markdown file. 
               Characters and detail notes are not included in the manuscript export but remain 

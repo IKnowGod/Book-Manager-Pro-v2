@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
 import type { AiSettings, AiModel } from '../types';
 import { Modal } from '../components/Modal';
+import { useToast } from '../context/ToastContext';
 import './GlobalSettingsPage.css';
 
 export default function GlobalSettingsPage() {
@@ -14,8 +15,7 @@ export default function GlobalSettingsPage() {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const { showToast } = useToast();
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [availableModels, setAvailableModels] = useState<AiModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -71,20 +71,18 @@ export default function GlobalSettingsPage() {
           fetchModels(data.provider, data.apiKey);
         }
       })
-      .catch(_err => setErrorMsg('Failed to load settings.'))
+      .catch(_err => showToast('Failed to load settings.', 'error'))
       .finally(() => setLoading(false));
   }, []); // Only on mount
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setSuccessMsg('');
-    setErrorMsg('');
     try {
       await api.settings.updateAi(settings);
-      setSuccessMsg('Settings saved successfully.');
+      showToast('Settings saved successfully.');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to save settings.');
+      showToast(err.message || 'Failed to save settings.', 'error');
     } finally {
       setSaving(false);
     }
@@ -95,7 +93,7 @@ export default function GlobalSettingsPage() {
       await api.settings.updateAi({ ...settings, onboardingCompleted: false });
       window.location.href = '/';
     } catch (err) {
-      setErrorMsg('Failed to reset onboarding.');
+      showToast('Failed to reset onboarding.', 'error');
       setIsResetModalOpen(false);
     }
   };
@@ -252,8 +250,6 @@ export default function GlobalSettingsPage() {
                   </div>
                 )}
 
-                {errorMsg && <p className="ai-error" style={{ marginTop: '1rem' }}>{errorMsg}</p>}
-                {successMsg && <p className="text-sm" style={{ color: 'var(--color-accent-success)', marginTop: '1rem' }}>{successMsg}</p>}
 
                 <div style={{ marginTop: '1rem' }}>
                   <button type="submit" className="btn btn-primary" disabled={saving}>
