@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { decodeId, encodeId } from '../utils/idEncoder';
+import { decodeId, encodeId } from '../utils/idEncoder.js';
 
 const router = Router();
 const prisma = new PrismaClient();

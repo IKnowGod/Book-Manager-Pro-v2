@@ -64,6 +64,7 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  width: 100%; /* Force child flex-box to respect width */
 }
 
 .related-suggestion-actions {
@@ -125,3 +126,16 @@
 }
 
 .related-approved-link:hover .related-link-delete { opacity: 1; }
+
+.shared-tag-item .badge {
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block; /* Better for text-overflow in some contexts */
+  padding: 1px 6px;
+}
+
+.shared-tags-section {
+  max-width: 100%;
+}

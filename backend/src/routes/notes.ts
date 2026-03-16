@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { decodeId } from '../utils/idEncoder';
-import { checkConsistency, suggestTags, getBetaReaderFeedback } from '../services/ai';
+import { decodeId } from '../utils/idEncoder.js';
+import { checkConsistency, suggestTags, getBetaReaderFeedback } from '../services/ai.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -145,24 +145,65 @@ router.put('/notes/:id', async (req: Request, res: Response) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   try {
+    const noteId = parseInt(req.params.id);
+    const oldNote = await prisma.note.findUniqueOrThrow({ where: { id: noteId } });
+
+    // Save version if content has changed
+    if (parsed.data.content !== undefined && parsed.data.content !== oldNote.content) {
+      await prisma.noteVersion.create({
+        data: {
+          noteId,
+          content: oldNote.content,
+        },
+      });
+
+      // Maintain only last 15 versions (FIFO)
+      const versionCount = await prisma.noteVersion.count({ where: { noteId } });
+      if (versionCount > 15) {
+        const oldestVersions = await prisma.noteVersion.findMany({
+          where: { noteId },
+          orderBy: { createdAt: 'asc' },
+          take: versionCount - 15,
+        });
+        const idsToDelete = oldestVersions.map((v) => v.id);
+        await prisma.noteVersion.deleteMany({
+          where: { id: { in: idsToDelete } },
+        });
+      }
+    }
+
     await prisma.note.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id: noteId },
       data: parsed.data,
     });
     
     // Apply auto-tags based on current (possibly updated) state
-    const currentNote = await prisma.note.findUniqueOrThrow({ where: { id: parseInt(req.params.id) } });
+    const currentNote = await prisma.note.findUniqueOrThrow({ where: { id: noteId } });
     await applyAutoTags(currentNote.id, currentNote.type, currentNote.title, currentNote.folderId, prisma);
 
     // Always refetch to get updated tags, folder data, and inconsistencies
     const updatedNote = await prisma.note.findUniqueOrThrow({
-      where: { id: parseInt(req.params.id) },
+      where: { id: noteId },
       include: { tags: { include: { tag: true } }, inconsistencies: true },
     });
     
     return res.json({ ...updatedNote, tags: updatedNote.tags.map((t) => t.tag) });
   } catch {
     return res.status(404).json({ error: 'Note not found' });
+  }
+});
+
+// GET /notes/:id/versions
+router.get('/notes/:id/versions', async (req: Request, res: Response) => {
+  try {
+    const versions = await prisma.noteVersion.findMany({
+      where: { noteId: parseInt(req.params.id) },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+    });
+    return res.json(versions);
+  } catch {
+    return res.status(400).json({ error: 'Invalid note ID' });
   }
 });
 

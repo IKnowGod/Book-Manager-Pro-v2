@@ -132,10 +132,22 @@ export default function Sidebar() {
                       <span>📊</span> Timeline
                     </NavLink>
                     <NavLink
+                      to={`/books/${book.id}/threads`}
+                      className={({ isActive }) => `sidebar-nav-link${isActive ? ' active' : ''}`}
+                    >
+                      <span>🧵</span> Subway Map
+                    </NavLink>
+                    <NavLink
                       to={`/books/${book.id}/analysis`}
                       className={({ isActive }) => `sidebar-nav-link${isActive ? ' active' : ''}`}
                     >
                       <span>🔬</span> Analysis
+                    </NavLink>
+                    <NavLink
+                      to={`/books/${book.id}/assembler`}
+                      className={({ isActive }) => `sidebar-nav-link${isActive ? ' active' : ''}`}
+                    >
+                      <span>📚</span> Assembler
                     </NavLink>
                     <NavLink
                       to={`/books/${book.id}/inconsistencies`}

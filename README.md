@@ -2,7 +2,7 @@
 
 A premium, AI-augmented management suite for authors and novelists. Built with a stunning **dark glassmorphism** interface, Book Manager Pro v2 doesn't just store your notes—it understands them.
 
-![Project Preview](https://via.placeholder.com/1200x600?text=Book+Manager+Pro+v2+UI+Preview)
+![Project Preview](./assets/logo.png)
 
 ## ✦ The AI Core
 
@@ -46,7 +46,7 @@ Reliability is key for authors. The backend supports a prioritized chain of AI m
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18 or higher)
+- Node.js (v22 or higher)
 - npm or yarn
 
 ### Installation

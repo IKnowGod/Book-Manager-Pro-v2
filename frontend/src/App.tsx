@@ -8,6 +8,8 @@ import InconsistenciesPage from './pages/InconsistenciesPage';
 import SearchPage from './pages/SearchPage';
 import ChapterTimelinePage from './pages/ChapterTimelinePage';
 import AnalysisPage from './pages/AnalysisPage';
+import BookAssemblerPage from './pages/BookAssemblerPage';
+import ThreadTrackerPage from './pages/ThreadTrackerPage';
 import GlobalSettingsPage from './pages/GlobalSettingsPage';
 
 export default function App() {
@@ -24,7 +26,9 @@ export default function App() {
           <Route path="books/:bookId/inconsistencies" element={<InconsistenciesPage />} />
           <Route path="books/:bookId/search" element={<SearchPage />} />
           <Route path="books/:bookId/timeline" element={<ChapterTimelinePage />} />
+          <Route path="books/:bookId/threads" element={<ThreadTrackerPage />} />
           <Route path="books/:bookId/analysis" element={<AnalysisPage />} />
+          <Route path="books/:bookId/assembler" element={<BookAssemblerPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="settings" element={<GlobalSettingsPage />} />
         </Route>

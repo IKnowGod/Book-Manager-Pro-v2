@@ -2,16 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { config } from './config';
+import { config } from './config.js';
 
-import bookRoutes from './routes/books';
-import noteRoutes from './routes/notes';
-import folderRoutes from './routes/folders';
-import tagRoutes from './routes/tags';
-import inconsistenciesRouter from './routes/inconsistencies';
-import searchRouter from './routes/search';
-import linksRouter from './routes/links';
-import settingsRouter from './routes/settings';
+import bookRoutes from './routes/books.js';
+import noteRoutes from './routes/notes.js';
+import folderRoutes from './routes/folders.js';
+import tagRoutes from './routes/tags.js';
+import inconsistenciesRouter from './routes/inconsistencies.js';
+import searchRouter from './routes/search.js';
+import linksRouter from './routes/links.js';
+import settingsRouter from './routes/settings.js';
 
 const app = express();
 

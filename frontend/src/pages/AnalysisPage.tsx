@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { api } from '../api/client';
 import type { Note, InteractionAnalysisResult, ThemeAnalysisResult, PacingScore, LooseEnd } from '../types';
+import ChapterSelector from '../components/ChapterSelector';
 import './AnalysisPage.css';
 
 type AnalysisTab = 'interactions' | 'themes' | 'pacing' | 'loose-ends';
@@ -18,6 +19,7 @@ export default function AnalysisPage() {
   const { bookId } = useParams<{ bookId: string }>();
   const navigate = useNavigate();
   const [tab, setTab] = useState<AnalysisTab>('interactions');
+  const [selectedNoteIds, setSelectedNoteIds] = useState<number[]>([]);
 
   // Interactions
   const [chapters, setChapters] = useState<Note[]>([]);
@@ -80,7 +82,7 @@ export default function AnalysisPage() {
     setThemeLoading(true);
     setThemeError(null);
     try {
-      const result = await api.books.analyzeThemes(bookId);
+      const result = await api.books.analyzeThemes(bookId, selectedNoteIds.length > 0 ? selectedNoteIds : undefined);
       setThemeResult(result);
     } catch (err: unknown) {
       setThemeError(err instanceof Error ? err.message : 'AI service error');
@@ -94,7 +96,7 @@ export default function AnalysisPage() {
     setPacingLoading(true);
     setPacingError(null);
     try {
-      const result = await api.books.analyzePacing(bookId);
+      const result = await api.books.analyzePacing(bookId, selectedNoteIds.length > 0 ? selectedNoteIds : undefined);
       setPacingResult(result);
     } catch (err: unknown) {
       setPacingError(err instanceof Error ? err.message : 'AI service error');
@@ -108,7 +110,7 @@ export default function AnalysisPage() {
     setLooseEndsLoading(true);
     setLooseEndsError(null);
     try {
-      const result = await api.books.analyzeLooseEnds(bookId);
+      const result = await api.books.analyzeLooseEnds(bookId, selectedNoteIds.length > 0 ? selectedNoteIds : undefined);
       setLooseEndsResult(result);
     } catch (err: unknown) {
       setLooseEndsError(err instanceof Error ? err.message : 'AI service error');
@@ -273,6 +275,12 @@ export default function AnalysisPage() {
       {/* ─── Themes Tab ─── */}
       {tab === 'themes' && (
         <div className="analysis-panel">
+          <ChapterSelector 
+            chapters={chapters} 
+            selectedIds={selectedNoteIds} 
+            onChange={setSelectedNoteIds}
+            title="Selective Theme Analysis"
+          />
           <div className="analysis-card glass-card">
             <h2 className="analysis-section-title">🎭 Thematic Presence Analysis</h2>
             <p className="text-muted text-sm">
@@ -287,7 +295,7 @@ export default function AnalysisPage() {
                 onClick={runThemes}
                 disabled={themeLoading}
               >
-                {themeLoading ? <><div className="spinner" /> Analyzing {chapters.length} chapters…</> : '✦ Analyze Themes'}
+                {themeLoading ? <><div className="spinner" /> Analyzing {selectedNoteIds.length > 0 ? selectedNoteIds.length : chapters.length} chapters…</> : '✦ Analyze Themes'}
               </button>
             )}
             {themeError && <p className="ai-error">{themeError}</p>}
@@ -333,6 +341,12 @@ export default function AnalysisPage() {
       {/* ─── Pacing Tab ─── */}
       {tab === 'pacing' && (
         <div className="analysis-panel">
+          <ChapterSelector 
+            chapters={chapters} 
+            selectedIds={selectedNoteIds} 
+            onChange={setSelectedNoteIds}
+            title="Targeted Pacing Tracker"
+          />
           <div className="analysis-card glass-card">
             <h2 className="analysis-section-title">📈 Intensity & Pacing Tracker</h2>
             <p className="text-muted text-sm">
@@ -347,7 +361,7 @@ export default function AnalysisPage() {
                 onClick={runPacing}
                 disabled={pacingLoading}
               >
-                {pacingLoading ? <><div className="spinner" /> Analyzing {chapters.length} chapters…</> : '✦ Analyze Pacing & Intensity'}
+                {pacingLoading ? <><div className="spinner" /> Analyzing {selectedNoteIds.length > 0 ? selectedNoteIds.length : chapters.length} chapters…</> : '✦ Analyze Pacing & Intensity'}
               </button>
             )}
             {pacingError && <p className="ai-error">{pacingError}</p>}
@@ -400,6 +414,12 @@ export default function AnalysisPage() {
       {/* ─── Loose Ends Tab ─── */}
       {tab === 'loose-ends' && (
         <div className="analysis-panel">
+          <ChapterSelector 
+            chapters={chapters} 
+            selectedIds={selectedNoteIds} 
+            onChange={setSelectedNoteIds}
+            title="Focused Plot Hole Scanner"
+          />
           <div className="analysis-card glass-card">
             <h2 className="analysis-section-title">🔎 Plot Hole & Loose End Scanner</h2>
             <p className="text-muted text-sm">
@@ -414,7 +434,7 @@ export default function AnalysisPage() {
                 onClick={runLooseEnds}
                 disabled={looseEndsLoading}
               >
-                {looseEndsLoading ? <><div className="spinner" /> Scanning {chapters.length} chapters…</> : '✦ Scan for Loose Ends'}
+                {looseEndsLoading ? <><div className="spinner" /> Scanning {selectedNoteIds.length > 0 ? selectedNoteIds.length : chapters.length} chapters…</> : '✦ Scan for Loose Ends'}
               </button>
             )}
             {looseEndsError && <p className="ai-error">{looseEndsError}</p>}

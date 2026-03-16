@@ -1,0 +1,99 @@
+.chapter-selector {
+  margin-bottom: var(--space-6);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.chapter-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  background: hsla(0, 0%, 100%, 0.03);
+  transition: background var(--transition-fast);
+}
+
+.chapter-selector-header:hover {
+  background: hsla(0, 0%, 100%, 0.06);
+}
+
+.chapter-selector-body {
+  padding: var(--space-4);
+  background: hsla(0, 0%, 0%, 0.2);
+  border-top: 1px solid var(--color-border);
+}
+
+.chapter-selector-actions {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-2);
+}
+
+.chapter-selector-actions button {
+  background: none;
+  border: none;
+  color: var(--color-accent-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.chapter-selector-actions button:hover:not(:disabled) {
+  background: hsla(250, 100%, 70%, 0.1);
+  color: var(--color-accent-light);
+}
+
+.chapter-selector-actions button:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.chapter-selector-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+}
+
+.chapter-selector-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.chapter-selector-item:hover {
+  background: hsla(0, 0%, 100%, 0.05);
+}
+
+.chapter-selector-item input {
+  cursor: pointer;
+}
+
+.chapter-selector-title {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chapter-selector-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chapter-selector-list::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}

@@ -36,6 +36,7 @@ model Note {
   chapterInconsistencies Inconsistency[] @relation("ChapterInconsistencies")
   sourceLinks     NoteLink[]      @relation("SourceLinks")
   targetLinks     NoteLink[]      @relation("TargetLinks")
+  versions        NoteVersion[]
 }
 
 model Folder {
@@ -98,6 +99,15 @@ model NoteLink {
   targetNote Note @relation("TargetLinks", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@unique([sourceId, targetId])
+}
+
+model NoteVersion {
+  id        Int      @id @default(autoincrement())
+  noteId    Int
+  content   String
+  createdAt DateTime @default(now())
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
 }
 
 model Setting {

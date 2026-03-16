@@ -166,6 +166,30 @@ export default function SettingsPage() {
             </button>
           </section>
 
+          {/* Maintenance Zone */}
+          <section className="settings-card glass-card">
+            <h2 className="settings-section-title">🛠️ Maintenance</h2>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold">Clear Revision History</h4>
+                  <p className="text-xs text-muted">Remove all previous versions of notes to save space. Current notes are preserved.</p>
+                </div>
+                <button 
+                  className="btn btn-ghost btn-sm"
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to clear all revision history for this book?')) {
+                      await api.books.deleteHistory(bookId!);
+                      alert('History cleared.');
+                    }
+                  }}
+                >
+                  Clear History
+                </button>
+              </div>
+            </div>
+          </section>
+
           <Modal
             isOpen={showDeleteModal}
             onClose={() => setShowDeleteModal(false)}

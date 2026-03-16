@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { config as serverConfig } from '../config';
+import { config as serverConfig } from '../config.js';
 
 const router = Router();
 const prisma = new PrismaClient();

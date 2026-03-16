@@ -6,11 +6,11 @@
 This file tracks the evolution of the project, covering key decisions, identified bugs, and future feature ideas.
  
 ## 2026-03-14: API Routing & Database Path Fixes
+## 2026-03-14: API Routing & Database Path Fixes
 - **Problem**: Frontend received 404 errors for `/api/books` and books appeared "gone."
 - **Root Cause**: Vite proxy was stripping `/api` prefix, and backend routes were inconsistently mounted. Backend `.env.local` was pointing to `dev.db` instead of `prisma/dev.db`.
 - **Fix**: Standardized all backend routes to be mounted under `/api`. Updated individual router files (`books.ts`, `tags.ts`, etc.) to include their respective path prefixes. Fixed `DATABASE_URL` in `.env.local`. Updated `vite.config.ts` to preserve the `/api` prefix when proxying.
 - **Result**: Data connectivity restored; books and notes are now correctly displayed in the UI.
-
 ## 2026-03-13: Rebuild Initiation
 - Created initial implementation plan for rebuilding the application in TypeScript (React + Node.js).
 - Defined new phase-based workflows for the migration.
@@ -86,3 +86,6 @@ This file tracks the evolution of the project, covering key decisions, identifie
 2026-03-14: Abstracted AI functionality into a dynamically configurable provider system (Gemini / OpenAI) via a new GlobalSettingsPage UI and database Setting model.
 - 2026-03-15: Implemented advanced AI authoring tools including Narrative Pacing Analysis, Beta-Reader Feedback, and Plot Hole Scanner.
 - 2026-03-15: Created detailed README.md highlighting AI capabilities and technical architecture.
+- 2026-03-15: Migrated project to Node LTS 22+ and enforced version requirement in package data.
+- 2026-03-15: Fixed broken README.md header image by moving logo.png to a root assets folder and updating the reference.
+- 2026-03-16: Implemented Book Assembler & Export Manager (Feature 2), Note Revision History & Visual Diffs (Feature 6), Narrative Subway Map (Thread Tracker), and Targeted AI Analysis optimization.

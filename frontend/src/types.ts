@@ -145,3 +145,25 @@ export interface AiModel {
   displayName: string;
   description: string;
 }
+
+export interface NoteVersion {
+  id: number;
+  noteId: number;
+  content: string;
+  createdAt: string;
+}
+
+export interface ThreadNode {
+  chapterTitle: string;
+  intensity: number;
+  summary: string;
+}
+
+export interface NarrativeThread {
+  threadName: string;
+  nodes: ThreadNode[];
+}
+
+export interface ThreadAnalysisResult {
+  threads: NarrativeThread[];
+}

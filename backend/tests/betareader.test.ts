@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
-import noteRoutes from '../src/routes/notes';
+import noteRoutes from '../src/routes/notes.js';
 import { PrismaClient } from '@prisma/client';
-import * as aiService from '../src/services/ai';
+import * as aiService from '../src/services/ai.js';
 
 vi.mock('@prisma/client', () => {
   const mPrismaClient = {
@@ -22,7 +22,7 @@ vi.mock('@prisma/client', () => {
   };
 });
 
-vi.mock('../src/services/ai', () => ({
+vi.mock('../src/services/ai.js', () => ({
   getBetaReaderFeedback: vi.fn(),
   checkConsistency: vi.fn(),
   suggestTags: vi.fn()

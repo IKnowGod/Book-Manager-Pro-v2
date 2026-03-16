@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import type { NoteLink, LinkSuggestion } from '../types';
+import type { Note, NoteLink, LinkSuggestion, Tag } from '../types';
 import './RelatedNotesPanel.css';
 
 interface Props {
@@ -25,6 +25,7 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
   const resolvedBookId = bookId || paramBookId || '';
 
   const [links, setLinks] = useState<NoteLink[]>([]);
+  const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [suggestions, setSuggestions] = useState<LinkSuggestion[]>([]);
   const [loadingLinks, setLoadingLinks] = useState(true);
   const [suggesting, setSuggesting] = useState(false);
@@ -33,10 +34,15 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.links.list(noteId)
-      .then(setLinks)
-      .finally(() => setLoadingLinks(false));
-  }, [noteId]);
+    Promise.all([
+      api.links.list(noteId),
+      api.notes.list(resolvedBookId)
+    ]).then(([l, n]) => {
+      setLinks(l);
+      setAllNotes(n);
+    })
+    .finally(() => setLoadingLinks(false));
+  }, [noteId, resolvedBookId]);
 
   const handleSuggest = async () => {
     setSuggesting(true);
@@ -81,6 +87,20 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
     setSuggestions(prev => prev.filter(s => s.targetId !== targetId));
   };
 
+  // --- Shared Tags Logic ---
+  const currentNote = allNotes.find(n => n.id === noteId);
+  const currentTagIds = new Set(currentNote?.tags.map(t => t.id) ?? []);
+  
+  const sharedTagNotes = allNotes
+    .filter(n => n.id !== noteId) // exclude self
+    .filter(n => n.tags.some((t: Tag) => currentTagIds.has(t.id))) // has shared tag
+    .filter(n => !links.some(l => l.targetId === n.id)) // not already linked
+    .map(n => ({
+      ...n,
+      sharedTags: n.tags.filter((t: Tag) => currentTagIds.has(t.id)).map((t: Tag) => t.name)
+    }))
+    .slice(0, 5); // limit to 5 suggestions
+
   return (
     <div className="related-notes-panel">
       <div className="related-notes-header">
@@ -108,6 +128,9 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
                 <div className="related-suggestion-text">
                   <span className="related-note-title">{s.targetTitle}</span>
                   <span className="badge related-link-type">{linkTypeLabel[s.linkType] ?? s.linkType}</span>
+                  {currentNote?.content?.toLowerCase().includes(s.targetTitle.toLowerCase()) && (
+                    <span className="badge badge-success text-[9px]">Mentioned in Text</span>
+                  )}
                   <p className="related-reason text-xs text-muted">{s.reason}</p>
                 </div>
               </div>
@@ -125,6 +148,45 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
                   onClick={() => handleDismissSuggestion(s.targetId)}
                 >
                   ✕
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Shared Tags deterministic results */}
+      {sharedTagNotes.length > 0 && (
+        <div className="related-suggestions shared-tags-section mt-4">
+          <div className="related-suggestions-label">Shared Tags — deterministic association:</div>
+          {sharedTagNotes.map(sn => (
+            <div key={sn.id} className="related-suggestion-item shared-tag-item">
+              <div className="related-suggestion-info">
+                <span className="related-note-icon">{typeIcon(sn.type)}</span>
+                <div className="related-suggestion-text">
+                  <span className="related-note-title">{sn.title}</span>
+                  <div className="shared-tags-list flex flex-wrap gap-1 mt-1">
+                    {sn.sharedTags.map((tag: string) => (
+                      <span key={tag} className="badge text-[10px] bg-[rgba(255,255,255,0.05)]">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="related-suggestion-actions">
+                <button
+                  className="btn btn-sm"
+                  style={{ color: 'var(--color-accent-success)' }}
+                  onClick={() => handleApprove({
+                    targetId: sn.id,
+                    targetTitle: sn.title,
+                    targetType: sn.type as any,
+                    linkType: 'related',
+                    reason: `Shares tags: ${sn.sharedTags.join(', ')}`
+                  })}
+                  disabled={approvingId === sn.id}
+                  title="Create link"
+                >
+                  +
                 </button>
               </div>
             </div>
@@ -153,7 +215,12 @@ export default function RelatedNotesPanel({ noteId, bookId }: Props) {
           <span className="related-note-icon">{typeIcon(link.targetNote.type)}</span>
           <div className="related-link-info">
             <span className="related-note-title">{link.targetNote.title}</span>
-            <span className="text-xs text-muted">{linkTypeLabel[link.linkType] ?? link.linkType}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted">{linkTypeLabel[link.linkType] ?? link.linkType}</span>
+              {currentNote?.content?.toLowerCase().includes(link.targetNote.title.toLowerCase()) && (
+                <span className="badge badge-success text-[9px]">Mentioned in Text</span>
+              )}
+            </div>
           </div>
           <button
             className="related-link-delete btn btn-sm"

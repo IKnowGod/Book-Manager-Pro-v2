@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { api } from '../api/client';
 import type { Note } from '../types';
+import ChapterSelector from '../components/ChapterSelector';
 import './ChapterTimelinePage.css';
 
 type ChartTab = 'characters' | 'tags';
@@ -36,6 +37,7 @@ export default function ChapterTimelinePage() {
   const navigate = useNavigate();
 
   const [allNotes, setAllNotes] = useState<Note[]>([]);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ChartTab>('characters');
 
@@ -47,6 +49,17 @@ export default function ChapterTimelinePage() {
   }, [bookId]);
 
   const chapters = useMemo(
+    () => {
+      let filtered = allNotes.filter(n => n.type === 'chapter');
+      if (selectedNoteIds.length > 0) {
+        filtered = filtered.filter(n => selectedNoteIds.includes(n.id));
+      }
+      return filtered.sort((a, b) => a.title.localeCompare(b.title));
+    },
+    [allNotes, selectedNoteIds]
+  );
+
+  const allChapters = useMemo(
     () => allNotes.filter(n => n.type === 'chapter').sort((a, b) => a.title.localeCompare(b.title)),
     [allNotes]
   );
@@ -61,7 +74,10 @@ export default function ChapterTimelinePage() {
         chapter: chapter.title,
       };
       characters.forEach(char => {
-        row[char.title] = chapter.content.toLowerCase().includes(char.title.toLowerCase()) ? 1 : 0;
+        // Character is present if name appears in text OR character-name tag is present on chapter
+        const textMention = chapter.content.toLowerCase().includes(char.title.toLowerCase());
+        const tagMention = chapter.tags.some(t => t.name.toLowerCase() === char.title.toLowerCase());
+        row[char.title] = (textMention || tagMention) ? 1 : 0;
       });
       return row;
     });
@@ -145,6 +161,13 @@ export default function ChapterTimelinePage() {
 
       {!loading && hasData && activeKeys.length > 0 && (
         <>
+          <ChapterSelector 
+            chapters={allChapters}
+            selectedIds={selectedNoteIds}
+            onChange={setSelectedNoteIds}
+            title="Filter Timeline by Chapters"
+          />
+
           <div className="timeline-chart-card glass-card">
             <h2 className="timeline-chart-title">
               {tab === 'characters'

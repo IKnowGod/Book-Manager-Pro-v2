@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
-import { config } from '../config';
+import { config } from '../config.js';
 import { PrismaClient } from '@prisma/client';
 
 // Generate text helper
@@ -224,41 +224,53 @@ export async function suggestTags(
   parsed.matched_tags = parsed.matched_tags || [];
   parsed.new_suggestions = parsed.new_suggestions || [];
 
-  // --- Always include mentioned character names as tags ---
-  // Fetch all character notes from the same book to get known character names.
-  const characterNotes = await prisma.note.findMany({
-    where: { bookId: note.bookId, type: 'character', id: { not: noteId } },
-    select: { title: true },
+  // --- Always include mentioned entities (Chapters/Characters/Details) as tags ---
+  // Fetch all other notes from the same book to perform cross-reference scanning.
+  const otherNotes = await prisma.note.findMany({
+    where: { bookId: note.bookId, id: { not: noteId } },
+    select: { id: true, title: true, type: true, content: true },
   });
 
   const contentLower = note.content.toLowerCase();
+  const titleLower = note.title.trim().toLowerCase();
 
-  for (const charNote of characterNotes) {
-    const charName = charNote.title.trim();
-    if (!charName) continue;
+  for (const otherNote of otherNotes) {
+    const otherTitle = otherNote.title.trim();
+    if (!otherTitle) continue;
 
-    // Check if this character is mentioned in the note content.
-    if (!contentLower.includes(charName.toLowerCase())) continue;
+    const otherTitleLower = otherTitle.toLowerCase();
+    const otherContentLower = otherNote.content.toLowerCase();
 
-    const existingTagMatch = existingTagNames.find(
-      (t) => t.toLowerCase() === charName.toLowerCase()
-    );
+    // Condition 1: CURRENT note mentions OTHER note (e.g. Chapter mentions Character)
+    const currentMentionsOther = contentLower.includes(otherTitleLower);
+    
+    // Condition 2: OTHER note mentions CURRENT note (e.g. Character mentioned in Chapter)
+    // Only do this if one of them is a chapter and the other is a character/detail, or both characters.
+    // This prevents tagging every chapter with every other chapter.
+    let otherMentionsCurrent = false;
+    if (
+      (note.type === 'character' && otherNote.type === 'chapter') ||
+      (note.type === 'chapter' && otherNote.type === 'character') ||
+      (note.type === 'character' && otherNote.type === 'character')
+    ) {
+      otherMentionsCurrent = titleLower.length > 0 && otherContentLower.includes(titleLower);
+    }
 
-    if (existingTagMatch) {
-      // Already a real tag — merge into matched_tags if not already there.
-      const alreadyMatched = parsed.matched_tags.some(
-        (m) => m.toLowerCase() === charName.toLowerCase()
+    if (currentMentionsOther || otherMentionsCurrent) {
+      const existingTagMatch = existingTagNames.find(
+        (t) => t.toLowerCase() === otherTitleLower
       );
-      if (!alreadyMatched) {
-        parsed.matched_tags.push(existingTagMatch);
-      }
-    } else {
-      // Not yet a tag — merge into new_suggestions if not already there.
-      const alreadySuggested = parsed.new_suggestions.some(
-        (s) => s.toLowerCase() === charName.toLowerCase()
-      );
-      if (!alreadySuggested) {
-        parsed.new_suggestions.push(charName);
+
+      if (existingTagMatch) {
+        // Tag exists in DB, add to matched_tags
+        if (!parsed.matched_tags.some(m => m.toLowerCase() === otherTitleLower)) {
+          parsed.matched_tags.push(existingTagMatch);
+        }
+      } else {
+        // Tag doesn't exist yet, add to new_suggestions
+        if (!parsed.new_suggestions.some(s => s.toLowerCase() === otherTitleLower)) {
+          parsed.new_suggestions.push(otherTitle);
+        }
       }
     }
   }
@@ -447,6 +459,59 @@ ${chapterText}`;
   }
 }
 
+// ======================= Narrative Subway Map (Threads) =======================
+
+export interface ThreadNode {
+  chapterTitle: string;
+  intensity: number;
+  summary: string;
+}
+
+export interface NarrativeThread {
+  threadName: string;
+  nodes: ThreadNode[];
+}
+
+export interface ThreadAnalysisResponse {
+  threads: NarrativeThread[];
+}
+
+export async function analyzeThreads(
+  chapters: { id: number; title: string; content: string }[],
+  prisma: PrismaClient
+): Promise<ThreadAnalysisResponse> {
+  if (chapters.length === 0) return { threads: [] };
+  
+  const chapterText = chapters
+    .map(c => `Chapter: ${c.title}\n${c.content.slice(0, 500)}`) // Substantial slice for context
+    .join('\n\n---\n\n');
+
+  const prompt = `Analyze these consecutive chapters. Group them into 3-5 distinct "Narrative Threads" (e.g., "The Rebellion", "The Royal Spies", "Maya's Journey"). 
+For each thread, identify which chapters belong to it, provide a 1-sentence scene summary for that thread in that chapter, and assign an "intensity" (1-10) for that thread's prominence in that chapter.
+
+Return ONLY a JSON object using exactly this structure:
+{
+  "threads": [
+    {
+      "threadName": "The Rebellion",
+      "nodes": [
+        { "chapterTitle": "Chapter 1", "intensity": 8, "summary": "The rebel cells are introduced." }
+      ]
+    }
+  ]
+}
+
+CHAPTERS:
+${chapterText}`;
+
+  const rawResponse = await generateAIContent(prompt, prisma);
+  try {
+    return JSON.parse(cleanJsonResponse(rawResponse)) as ThreadAnalysisResponse;
+  } catch (e) {
+    return { threads: [] };
+  }
+}
+
 
 // ======================= Note Linking =======================
 
@@ -491,11 +556,49 @@ Only include notes that are genuinely related. Return an empty array [] if none 
 
   const rawResponse = await generateAIContent(prompt, prisma);
   
+  let suggestions: LinkSuggestion[] = [];
   try {
     const raw = cleanJsonResponse(rawResponse);
-    const suggestions = JSON.parse(raw) as LinkSuggestion[];
-    return suggestions.filter(s => otherNotes.some(n => n.id === s.targetId));
+    suggestions = JSON.parse(raw) as LinkSuggestion[];
   } catch (e) {
-    return [];
+    console.error('Failed to parse suggestLinks JSON', rawResponse);
   }
+
+  // --- Map of current suggestions for easy lookup/update ---
+  const suggestionMap = new Map<number, LinkSuggestion>();
+  suggestions.forEach(s => suggestionMap.set(s.targetId, s));
+
+  // --- Deterministic Pass: Scan for explicit mentions of other notes ---
+  const sourceContentLower = sourceNote.content.toLowerCase();
+
+  for (const other of otherNotes) {
+    const otherTitle = other.title.trim();
+    if (!otherTitle || otherTitle.length < 3) continue; // skip very short names
+
+    const otherTitleLower = otherTitle.toLowerCase();
+    
+    // Check for explicit mention in content
+    if (sourceContentLower.includes(otherTitleLower)) {
+      const existing = suggestionMap.get(other.id);
+      
+      if (existing) {
+        // AI already found it, but let's ensure the type is 'character_mention' if it's a character
+        if (other.type === 'character') {
+          existing.linkType = 'character_mention';
+          existing.reason = `Direct mention of "${other.title}" found in text.`;
+        }
+      } else {
+        // AI missed it, add deterministic suggestion
+        suggestionMap.set(other.id, {
+          targetId: other.id,
+          targetTitle: other.title,
+          targetType: other.type,
+          linkType: other.type === 'character' ? 'character_mention' : 'related',
+          reason: `Direct mention of "${other.title}" found in text.`
+        });
+      }
+    }
+  }
+
+  return Array.from(suggestionMap.values()).filter(s => otherNotes.some(n => n.id === s.targetId));
 }

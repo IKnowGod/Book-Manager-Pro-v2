@@ -1,8 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { encodeId, decodeId } from '../utils/idEncoder';
-import { analyzeInteractions, analyzeThemes, analyzePacing, scanForLooseEnds } from '../services/ai';
+import { encodeId, decodeId } from '../utils/idEncoder.js';
+import { 
+  analyzeInteractions, 
+  analyzeThemes, 
+  analyzePacing, 
+  scanForLooseEnds,
+  analyzeThreads
+} from '../services/ai.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -116,6 +122,59 @@ router.delete('/books/:id', async (req: Request, res: Response) => {
   }
 });
 
+// DELETE /books/:id/history
+router.delete('/books/:id/history', async (req: Request, res: Response) => {
+  try {
+    const bookId = decodeId(req.params.id);
+    await prisma.noteVersion.deleteMany({
+      where: { note: { bookId } }
+    });
+    return res.json({ message: 'Book history cleared successfully' });
+  } catch {
+    return res.status(400).json({ error: 'Failed to clear history' });
+  }
+});
+
+// POST /books/:id/export
+router.post('/books/:id/export', async (req: Request, res: Response) => {
+  try {
+    const bookId = decodeId(req.params.id);
+    const { noteOrder } = req.body; // Optional array of note IDs
+    
+    const book = await prisma.book.findUnique({
+      where: { id: bookId },
+      include: { 
+        notes: { 
+          where: { type: 'chapter' }
+        } 
+      }
+    });
+
+    if (!book) return res.status(404).json({ error: 'Book not found' });
+
+    let sortedNotes = book.notes;
+    if (noteOrder && Array.isArray(noteOrder)) {
+      const orderMap = new Map(noteOrder.map((id, index) => [id, index]));
+      sortedNotes = [...book.notes].sort((a, b) => {
+        const orderA = orderMap.get(a.id) ?? 999;
+        const orderB = orderMap.get(b.id) ?? 999;
+        return orderA - orderB;
+      });
+    } else {
+      sortedNotes = [...book.notes].sort((a, b) => a.title.localeCompare(b.title));
+    }
+
+    let content = `# ${book.title}\n\n`;
+    sortedNotes.forEach(note => {
+      content += `## ${note.title}\n\n${note.content}\n\n---\n\n`;
+    });
+
+    return res.json({ content });
+  } catch {
+    return res.status(400).json({ error: 'Export failed' });
+  }
+});
+
 // POST /books/:id/analyze-interactions
 router.post('/books/:id/analyze-interactions', async (req: Request, res: Response) => {
   const { content } = req.body;
@@ -135,13 +194,20 @@ router.post('/books/:id/analyze-interactions', async (req: Request, res: Respons
 router.post('/books/:id/analyze-themes', async (req: Request, res: Response) => {
   try {
     const bookId = decodeId(req.params.id);
+    const { noteIds } = req.body; // Optional array of note IDs
+
     const chapters = await prisma.note.findMany({
-      where: { bookId, type: 'chapter' },
+      where: { 
+        bookId, 
+        type: 'chapter',
+        id: noteIds && Array.isArray(noteIds) ? { in: noteIds } : undefined
+      },
       select: { title: true, content: true },
       orderBy: { title: 'asc' },
     });
-    if (chapters.length < 2) {
-      return res.status(400).json({ error: 'Need at least 2 chapter notes to analyze themes' });
+
+    if (chapters.length < 1) {
+      return res.status(400).json({ error: 'Need at least 1 chapter note to analyze themes' });
     }
     const result = await analyzeThemes(chapters, prisma);
     return res.json(result);
@@ -151,17 +217,22 @@ router.post('/books/:id/analyze-themes', async (req: Request, res: Response) => 
   }
 });
 
-// GET /books/:id/pacing
-router.get('/books/:id/pacing', async (req: Request, res: Response) => {
+// POST /books/:id/pacing
+router.post('/books/:id/pacing', async (req: Request, res: Response) => {
   try {
     const bookId = decodeId(req.params.id);
+    const { noteIds } = req.body;
+
     const chapters = await prisma.note.findMany({
-      where: { bookId, type: 'chapter' },
+      where: { 
+        bookId, 
+        type: 'chapter',
+        id: noteIds && Array.isArray(noteIds) ? { in: noteIds } : undefined
+      },
       select: { title: true, content: true },
       orderBy: { title: 'asc' },
     });
     
-    // We can still try to analyze if they have at least 1 chapter, but > 2 is better for pacing
     if (chapters.length < 1) {
       return res.status(400).json({ error: 'Need at least 1 chapter note to analyze pacing' });
     }
@@ -174,12 +245,18 @@ router.get('/books/:id/pacing', async (req: Request, res: Response) => {
   }
 });
 
-// GET /books/:id/loose-ends
-router.get('/books/:id/loose-ends', async (req: Request, res: Response) => {
+// POST /books/:id/loose-ends
+router.post('/books/:id/loose-ends', async (req: Request, res: Response) => {
   try {
     const bookId = decodeId(req.params.id);
+    const { noteIds } = req.body;
+
     const chapters = await prisma.note.findMany({
-      where: { bookId, type: 'chapter' },
+      where: { 
+        bookId, 
+        type: 'chapter',
+        id: noteIds && Array.isArray(noteIds) ? { in: noteIds } : undefined
+      },
       select: { title: true, content: true },
       orderBy: { title: 'asc' },
     });
@@ -192,6 +269,30 @@ router.get('/books/:id/loose-ends', async (req: Request, res: Response) => {
     return res.json(result);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'AI service error';
+    return res.status(500).json({ error: message });
+  }
+});
+
+// POST /books/:id/threads
+router.post('/books/:id/threads', async (req: Request, res: Response) => {
+  try {
+    const bookId = decodeId(req.params.id);
+    const { noteIds } = req.body;
+
+    const chapters = await prisma.note.findMany({
+      where: { 
+        bookId, 
+        type: 'chapter',
+        id: noteIds && Array.isArray(noteIds) ? { in: noteIds } : undefined
+      },
+      orderBy: { title: 'asc' }, 
+      select: { id: true, title: true, content: true }
+    });
+
+    const result = await analyzeThreads(chapters, prisma);
+    return res.json(result);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Analysis failed';
     return res.status(500).json({ error: message });
   }
 });

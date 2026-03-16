@@ -1,0 +1,54 @@
+.subway-map-container {
+  width: 100%;
+  overflow-x: auto;
+  padding: var(--space-8);
+  background: hsla(0, 0%, 0%, 0.2);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+}
+
+.subway-map-svg {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.subway-line {
+  transition: all var(--transition-normal);
+}
+
+.subway-line:hover {
+  opacity: 1;
+  stroke-width: 6;
+}
+
+.subway-node-group {
+  cursor: pointer;
+}
+
+.subway-node {
+  transition: all var(--transition-fast);
+}
+
+.subway-node-group:hover .subway-node {
+  transform: scale(1.2);
+  fill: var(--color-bg-elevated);
+}
+
+.chapter-label {
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.node-summary {
+  font-size: 9px;
+  fill: var(--color-text-secondary);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.subway-node-group:hover .node-summary {
+  opacity: 1;
+}

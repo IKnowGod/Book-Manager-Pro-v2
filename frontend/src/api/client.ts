@@ -22,18 +22,38 @@ export const api = {
     create: (title: string) => request<Book>('/books', { method: 'POST', body: JSON.stringify({ title }) }),
     update: (id: string, title: string) => request<Book>(`/books/${id}`, { method: 'PUT', body: JSON.stringify({ title }) }),
     delete: (id: string) => request<{ message: string }>(`/books/${id}`, { method: 'DELETE' }),
+    deleteHistory: (id: string) => request<{ message: string }>(`/books/${id}/history`, { method: 'DELETE' }),
     stats: (id: string) => request<BookStats>(`/books/${id}/stats`),
     analyzeInteractions: (id: string, content: string) =>
       request<InteractionAnalysisResult>(`/books/${id}/analyze-interactions`, {
         method: 'POST',
         body: JSON.stringify({ content }),
       }),
-    analyzeThemes: (id: string) =>
-      request<ThemeAnalysisResult>(`/books/${id}/analyze-themes`, { method: 'POST' }),
-    analyzePacing: (id: string) =>
-      request<PacingScore[]>(`/books/${id}/pacing`),
-    analyzeLooseEnds: (id: string) =>
-      request<import('../types').LooseEnd[]>(`/books/${id}/loose-ends`),
+    analyzeThemes: (id: string, noteIds?: number[]) =>
+      request<ThemeAnalysisResult>(`/books/${id}/analyze-themes`, { 
+        method: 'POST',
+        body: JSON.stringify({ noteIds })
+      }),
+    analyzePacing: (id: string, noteIds?: number[]) =>
+      request<PacingScore[]>(`/books/${id}/pacing`, {
+        method: 'POST',
+        body: JSON.stringify({ noteIds })
+      }),
+    analyzeLooseEnds: (id: string, noteIds?: number[]) =>
+      request<import('../types').LooseEnd[]>(`/books/${id}/loose-ends`, {
+        method: 'POST',
+        body: JSON.stringify({ noteIds })
+      }),
+    export: (id: string, noteOrder?: number[]) =>
+      request<{ content: string }>(`/books/${id}/export`, { 
+        method: 'POST',
+        body: JSON.stringify({ noteOrder })
+      }),
+    getThreads: (id: string, noteIds?: number[]) =>
+      request<import('../types').ThreadAnalysisResult>(`/books/${id}/threads`, {
+        method: 'POST',
+        body: JSON.stringify({ noteIds })
+      }),
   },
 
   folders: {
@@ -67,6 +87,8 @@ export const api = {
       request<TagSuggestionResult>(`/notes/${id}/suggest-tags`, { method: 'POST' }),
     betaRead: (id: number) =>
       request<import('../types').BetaReaderFeedback>(`/notes/${id}/beta-read`, { method: 'POST' }),
+    getVersions: (id: number) =>
+      request<import('../types').NoteVersion[]>(`/notes/${id}/versions`),
   },
 
   tags: {

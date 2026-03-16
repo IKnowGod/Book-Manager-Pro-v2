@@ -1,9 +1,9 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const envLocalPath = path.resolve(__dirname, '../../.env.local');
+const envLocalPath = path.resolve(import.meta.dirname, '../../.env.local');
 if (fs.existsSync(envLocalPath)) {
   dotenv.config({ path: envLocalPath, override: true });
 } else if (fs.existsSync(path.resolve(process.cwd(), '.env.local'))) {

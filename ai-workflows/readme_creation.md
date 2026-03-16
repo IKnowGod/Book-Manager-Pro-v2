@@ -11,6 +11,7 @@ This document outlines the process used to generate the high-quality README for 
 2.  **Architecture Review**: Verified the tech stack (React, Vite, Express, Prisma) to provide accurate technical specifications.
 3.  **Terminology Alignment**: Ensured that the terminology (e.g., "Continuity Editor", "Beta Reader Simulator") matches the implementation in the codebase.
 4.  **UI Categorization**: Grouped features into logical sections for users: AI Core, Authoring Suite, and Narrative Analysis.
+5.  **Asset Management**: Moved the application logo to a root `/assets` folder to ensure the README header displays correctly in Git hosting environments without external dependencies.
 
 ## Structure
 -   **✦ The AI Core**: Highlights the most unique selling points of the app.

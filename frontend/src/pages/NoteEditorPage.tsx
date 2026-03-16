@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import type { Note, Tag, Inconsistency, TagSuggestionResult, Folder, BetaReaderFeedback } from '../types';
 import RelatedNotesPanel from '../components/RelatedNotesPanel';
+import VersionHistoryPanel from '../components/VersionHistoryPanel';
 import { Modal } from '../components/Modal';
 import './NoteEditorPage.css';
 
@@ -182,6 +183,10 @@ export default function NoteEditorPage() {
   const updateInconsistencyStatus = async (id: number, status: Inconsistency['status']) => {
     await api.inconsistencies.update(id, status);
     setInconsistencies(prev => prev.map(i => i.id === id ? { ...i, status } : i));
+  };
+
+  const handleRestoreVersion = (content: string) => {
+    setForm(f => ({ ...f, content }));
   };
 
   const noteTagIds = new Set(note?.tags.map(t => t.id) ?? []);
@@ -458,6 +463,17 @@ export default function NoteEditorPage() {
           {!isNew && note && bookId && (
             <section className="ai-section glass-card">
               <RelatedNotesPanel noteId={note.id} bookId={bookId} />
+            </section>
+          )}
+
+          {/* Revision History */}
+          {!isNew && note && (
+            <section className="ai-section glass-card">
+              <VersionHistoryPanel 
+                noteId={note.id} 
+                currentContent={form.content} 
+                onRestore={handleRestoreVersion} 
+              />
             </section>
           )}
         </aside>

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { decodeId } from '../utils/idEncoder';
+import { decodeId } from '../utils/idEncoder.js';
 
 const router = Router();
 const prisma = new PrismaClient();

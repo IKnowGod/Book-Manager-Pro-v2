@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
-import bookRoutes from '../src/routes/books';
+import bookRoutes from '../src/routes/books.js';
 import { PrismaClient } from '@prisma/client';
-import * as aiService from '../src/services/ai';
-import { encodeId } from '../src/utils/idEncoder';
+import * as aiService from '../src/services/ai.js';
+import { encodeId } from '../src/utils/idEncoder.js';
 
 vi.mock('@prisma/client', () => {
   const mPrismaClient = {
@@ -23,7 +23,7 @@ vi.mock('@prisma/client', () => {
   };
 });
 
-vi.mock('../src/services/ai', () => ({
+vi.mock('../src/services/ai.js', () => ({
   scanForLooseEnds: vi.fn(),
 }));
 

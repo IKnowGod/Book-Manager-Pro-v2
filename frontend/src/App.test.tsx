@@ -6,6 +6,7 @@ import App from './App';
 vi.mock('./api/client', () => ({
   api: {
     books: { list: vi.fn().mockResolvedValue([]) },
+    settings: { getAi: vi.fn().mockResolvedValue({}) },
   },
 }));
 
