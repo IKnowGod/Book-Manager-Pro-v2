@@ -85,3 +85,4 @@ This file tracks the evolution of the project, covering key decisions, identifie
 2026-03-14: Updated Issues page 'Fix it' navigation to correctly link to the flawed note, not the context note (in frontend/src/pages/InconsistenciesPage.tsx).
 2026-03-14: Abstracted AI functionality into a dynamically configurable provider system (Gemini / OpenAI) via a new GlobalSettingsPage UI and database Setting model.
 - 2026-03-15: Implemented advanced AI authoring tools including Narrative Pacing Analysis, Beta-Reader Feedback, and Plot Hole Scanner.
+- 2026-03-15: Created detailed README.md highlighting AI capabilities and technical architecture.
