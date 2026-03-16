@@ -19,38 +19,52 @@ export async function generateAIContent(prompt: string, prisma: PrismaClient): P
   const provider = configMap['ai_provider'] || 'gemini';
   const apiKey = (configMap['ai_api_key'] || config.geminiApiKey).trim();
   const baseUrl = configMap['ai_base_url'] || '';
-  const modelName = configMap['ai_model'] || (provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-3.5-turbo');
+  const rawModelName = configMap['ai_model'] || (provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-3.5-turbo');
 
+  // Parse potential model chain (comma-separated)
+  const modelsToTry = rawModelName.split(',').map(m => m.trim()).filter(Boolean);
+  
   if (!apiKey && provider === 'gemini') {
     throw new Error('No API key configured for Gemini. Please set it in Global Settings or .env.local (GEMINI_API_KEY).');
   }
 
-  if (provider === 'gemini') {
-    const genai = new GoogleGenerativeAI(apiKey);
-    const model = genai.getGenerativeModel({ model: modelName });
-    const response = await model.generateContent(prompt);
-    return response.response.text();
-  } else {
-    // OpenAI or compatible like LMStudio / Ollama
-    if (!apiKey && !baseUrl) {
-      // For local providers like Ollama, sometimes no key is okay if baseUrl is set
-      // But usually OpenAI needs a key or we're hitting a local endpoint that might not.
-      // We'll allow empty if baseUrl is present, otherwise throw.
+  let lastError: any = null;
+
+  for (const modelName of modelsToTry) {
+    try {
+      if (provider === 'gemini') {
+        const genai = new GoogleGenerativeAI(apiKey);
+        const model = genai.getGenerativeModel({ model: modelName });
+        const response = await model.generateContent(prompt);
+        return response.response.text();
+      } else {
+        const openai = new OpenAI({
+          apiKey: apiKey || 'dummy-key',
+          baseURL: baseUrl || undefined,
+        });
+        
+        const response = await openai.chat.completions.create({
+          model: modelName,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+        });
+        
+        return response.choices[0]?.message?.content || '';
+      }
+    } catch (error: any) {
+      lastError = error;
+      const status = error.status || (error.response && error.response.status);
+      const isRateLimit = status === 429 || error.message?.includes('429') || error.message?.includes('quota');
+      
+      if (isRateLimit && modelsToTry.indexOf(modelName) < modelsToTry.length - 1) {
+        console.warn(`Model ${modelName} exhausted (429/Quota). Falling back to next model: ${modelsToTry[modelsToTry.indexOf(modelName) + 1]}`);
+        continue; // Try the next model
+      }
+      throw error;
     }
-    
-    const openai = new OpenAI({
-      apiKey: apiKey || 'dummy-key',
-      baseURL: baseUrl || undefined,
-    });
-    
-    const response = await openai.chat.completions.create({
-      model: modelName,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    });
-    
-    return response.choices[0]?.message?.content || '';
   }
+
+  throw lastError || new Error('All models in the chain failed.');
 }
 
 interface InconsistencyResult {

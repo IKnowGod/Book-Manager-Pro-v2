@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { api } from '../api/client';
-import type { AiSettings } from '../types';
+import type { AiSettings, AiModel } from '../types';
 import { useNavigate } from 'react-router-dom';
 
 interface OnboardingModalProps {
@@ -16,14 +16,68 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onComp
     provider: 'gemini',
     apiKey: '',
     baseUrl: '',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-1.5-flash',
   });
   const [bookTitle, setBookTitle] = useState('');
   const [error, setError] = useState('');
+  const [availableModels, setAvailableModels] = useState<AiModel[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
   const navigate = useNavigate();
+
+  const selectedModels = aiSettings.model.split(',').map(m => m.trim()).filter(Boolean);
+
+  const toggleModel = (modelName: string) => {
+    let newModels;
+    if (selectedModels.includes(modelName)) {
+      newModels = selectedModels.filter(m => m !== modelName);
+    } else {
+      newModels = [...selectedModels, modelName];
+    }
+    setAiSettings({ ...aiSettings, model: newModels.join(',') });
+  };
+
+  const moveModel = (index: number, direction: 'up' | 'down') => {
+    const newModels = [...selectedModels];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newModels.length) return;
+    
+    [newModels[index], newModels[targetIndex]] = [newModels[targetIndex], newModels[index]];
+    setAiSettings({ ...aiSettings, model: newModels.join(',') });
+  };
+
+  useEffect(() => {
+    if (aiSettings.provider === 'gemini' && step === 2) {
+      const fetchModels = async () => {
+        setLoadingModels(true);
+        try {
+          const models = await api.settings.getAiModels(aiSettings.provider, aiSettings.apiKey);
+          setAvailableModels(models);
+          // Auto-select first model if none set
+          if (!aiSettings.model && models.length > 0) {
+            setAiSettings(s => ({ ...s, model: models[0].name }));
+          }
+        } catch (err) {
+          console.error('Failed to fetch models in onboarding', err);
+        } finally {
+          setLoadingModels(false);
+        }
+      };
+      fetchModels();
+    }
+  }, [aiSettings.provider, aiSettings.apiKey, step]);
 
   const handleNext = () => setStep(step + 1);
   const handleBack = () => setStep(step - 1);
+
+  const handleDismiss = async () => {
+    try {
+      // Save that we've seen this, even if not fully configured
+      await api.settings.updateAi({ ...aiSettings, onboardingCompleted: true });
+    } catch (err) {
+      console.error('Failed to dismiss onboarding', err);
+    }
+    onComplete();
+  };
 
   const handleFinish = async () => {
     setLoading(true);
@@ -49,7 +103,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onComp
   return (
     <Modal
       isOpen={isOpen}
-      onClose={() => {}} // Non-closable
+      onClose={handleDismiss}
       title={step === 1 ? "Welcome to Book Manager Pro" : step === 2 ? "Configure AI" : "Create Your First Book"}
       footer={
         <div className="flex justify-between w-full">
@@ -103,14 +157,102 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onComp
 
             <div className="form-group mb-4">
               <label className="input-label">API Key</label>
-              <input
-                type="password"
-                className="input"
-                placeholder="Enter API Key"
-                value={aiSettings.apiKey}
-                onChange={e => setAiSettings({ ...aiSettings, apiKey: e.target.value })}
-              />
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  className="input"
+                  placeholder="Enter API Key"
+                  value={aiSettings.apiKey}
+                  onChange={e => setAiSettings({ ...aiSettings, apiKey: e.target.value })}
+                />
+                {aiSettings.provider === 'gemini' && (
+                  <button 
+                    type="button" 
+                    className="btn btn-ghost"
+                    onClick={async () => {
+                      setLoadingModels(true);
+                      try {
+                        const models = await api.settings.getAiModels(aiSettings.provider, aiSettings.apiKey);
+                        setAvailableModels(models);
+                      } finally {
+                        setLoadingModels(false);
+                      }
+                    }}
+                    disabled={loadingModels}
+                  >
+                    {loadingModels ? '...' : '🔄'}
+                  </button>
+                )}
+              </div>
               <p className="text-xs text-muted mt-1">Leave blank to use server environment defaults (if set).</p>
+            </div>
+            
+            <div className="form-group mb-4">
+              <label className="input-label">Model Preference (Ordered Fallback)</label>
+              
+              {/* Selected Models List */}
+              {selectedModels.length > 0 ? (
+                <div className="flex flex-col gap-2 mb-4">
+                  {selectedModels.map((m, idx) => {
+                    const modelInfo = availableModels.find(am => am.name === m);
+                    return (
+                      <div key={m} className="flex items-center gap-2 p-2 glass-card border border-primary/20 rounded-lg animate-slide-right" style={{ background: 'rgba(var(--color-accent-primary-rgb), 0.05)' }}>
+                        <span className="text-xs font-bold text-primary opacity-50 w-4">{idx + 1}.</span>
+                        <div className="flex-grow">
+                          <div className="text-sm font-medium">{modelInfo?.displayName || m}</div>
+                          <div className="text-[10px] opacity-60 truncate max-w-[200px]">{m}</div>
+                        </div>
+                        <div className="flex gap-1">
+                          <button type="button" className="btn btn-icon btn-ghost p-1" onClick={() => moveModel(idx, 'up')} disabled={idx === 0}>
+                            <span style={{ transform: 'rotate(-90deg)', display: 'inline-block', fontSize: '10px' }}>➜</span>
+                          </button>
+                          <button type="button" className="btn btn-icon btn-ghost p-1" onClick={() => moveModel(idx, 'down')} disabled={idx === selectedModels.length - 1}>
+                            <span style={{ transform: 'rotate(90deg)', display: 'inline-block', fontSize: '10px' }}>➜</span>
+                          </button>
+                          <button type="button" className="btn btn-icon btn-ghost p-1 text-danger" onClick={() => toggleModel(m)}>
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-4 border-2 border-dashed border-border-subtle rounded-lg text-center text-sm text-muted mb-4">
+                  No models selected.
+                </div>
+              )}
+
+              {/* Available Models Selection */}
+              <label className="input-label text-xs opacity-70">Available Models</label>
+              {aiSettings.provider === 'gemini' ? (
+                <div className="grid grid-cols-2 gap-2 mt-1 scroll-area" style={{ maxHeight: '180px', padding: '4px' }}>
+                  {availableModels.map(m => {
+                    const isSelected = selectedModels.includes(m.name);
+                    return (
+                      <button
+                        key={m.name}
+                        type="button"
+                        className={`model-card ${isSelected ? 'selected' : ''}`}
+                        onClick={() => toggleModel(m.name)}
+                        title={m.description}
+                      >
+                        <span className="model-name truncate">{m.displayName || m.name}</span>
+                        <span className="model-id truncate">{m.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. gpt-4, gpt-3.5-turbo"
+                  value={aiSettings.model}
+                  onChange={e => setAiSettings({ ...aiSettings, model: e.target.value })}
+                />
+              )}
+              {loadingModels && <p className="text-[10px] text-muted mt-1">Discovering models...</p>}
             </div>
 
             {aiSettings.provider === 'openai' && (

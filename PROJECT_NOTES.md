@@ -21,6 +21,7 @@ This file tracks the evolution of the project, covering key decisions, identifie
 - AI features: Gemini-powered consistency checking and tag suggestions fully ported.
 - Both frontend and backend TypeScript compile with zero errors.
 - **NEXT**: Open `backend/.env` and replace `GEMINI_API_KEY` placeholder with your real key.
+- **2026-03-15**: Initialized Git repository, connected to GitHub, and performed security audit to ensure no secrets are tracked. Updated .gitignore for better exclusion.
 - **NEXT**: Run `npm run dev` in both `backend/` and `frontend/` to start the app.
 - 2026-03-13: Implemented a grid/list view toggle for the BookDetailPage notes list.
 - 2026-03-13: Fixed missing spacing below the list/grid toggle by adding `.mb-6` to global css.

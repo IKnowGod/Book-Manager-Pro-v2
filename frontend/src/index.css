@@ -261,16 +261,78 @@ textarea.input { resize: vertical; min-height: 120px; }
 .flex-col { flex-direction: column; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.gap-1 { gap: var(--space-1); }
 .gap-2 { gap: var(--space-2); }
 .gap-3 { gap: var(--space-3); }
 .gap-4 { gap: var(--space-4); }
+.flex-grow { flex-grow: 1; }
 .w-full { width: 100%; }
-.text-muted { color: var(--color-text-secondary); }
-.text-xs { font-size: var(--text-xs); }
-.text-sm { font-size: var(--text-sm); }
+
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+.mt-1 { margin-top: var(--space-1); }
+.mt-2 { margin-top: var(--space-2); }
 .mt-4 { margin-top: var(--space-4); }
+.mt-8 { margin-top: var(--space-8); }
+.mb-2 { margin-bottom: var(--space-2); }
 .mb-4 { margin-bottom: var(--space-4); }
 .mb-6 { margin-bottom: var(--space-6); }
+.py-4 { padding-top: var(--space-4); padding-bottom: var(--space-4); }
+
+/* ---------- Utilities ---------- */
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-muted { color: var(--color-text-secondary); }
+.text-danger { color: var(--color-accent-danger); }
+.text-primary { color: var(--color-accent-primary); }
+.text-center { text-align: center; }
+.font-medium { font-weight: 500; }
+.font-bold { font-weight: 700; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.animate-fade-in { animation: fadeIn var(--transition-normal) both; }
+
+.scroll-area {
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* ---------- Model Cards ---------- */
+.model-card {
+  text-align: left;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: hsla(0, 0%, 100%, 0.03);
+  color: var(--color-text-primary);
+  transition: all var(--transition-fast);
+}
+
+.model-card:hover {
+  background: hsla(0, 0%, 100%, 0.08);
+  border-color: var(--color-border-hover);
+}
+
+.model-card.selected {
+  background: hsla(258, 70%, 65%, 0.15);
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 12px hsla(258, 70%, 65%, 0.2);
+}
+
+.model-card .model-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  display: block;
+}
+
+.model-card .model-id {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  display: block;
+}
 
 /* ---------- Onboarding ---------- */
 .step-indicator {

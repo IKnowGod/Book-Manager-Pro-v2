@@ -112,7 +112,13 @@ export const api = {
 
   settings: {
     getAi: () => request<AiSettings>('/settings/ai'),
-    updateAi: (data: AiSettings) => request<{ success: true }>('/settings/ai', { method: 'POST', body: JSON.stringify(data) })
+    updateAi: (data: AiSettings) => request<{ success: true }>('/settings/ai', { method: 'POST', body: JSON.stringify(data) }),
+    getAiModels: (provider?: string, apiKey?: string) => {
+      const qs = new URLSearchParams();
+      if (provider) qs.set('provider', provider);
+      if (apiKey) qs.set('apiKey', apiKey);
+      return request<{ name: string; displayName: string; description: string }[]>(`/settings/ai/models?${qs.toString()}`);
+    }
   }
 };
 

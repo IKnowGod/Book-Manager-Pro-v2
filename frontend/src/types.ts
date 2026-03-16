@@ -139,3 +139,9 @@ export interface AiSettings {
   model: string;
   onboardingCompleted?: boolean;
 }
+
+export interface AiModel {
+  name: string;
+  displayName: string;
+  description: string;
+}

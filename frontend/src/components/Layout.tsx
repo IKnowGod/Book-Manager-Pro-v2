@@ -14,8 +14,8 @@ export default function Layout() {
     Promise.all([
       api.settings.getAi(),
       api.books.list()
-    ]).then(([settings, books]) => {
-      if (!settings.onboardingCompleted && books.length === 0) {
+    ]).then(([settings, _books]) => {
+      if (!settings.onboardingCompleted) {
         setShowOnboarding(true);
       }
     }).finally(() => setLoading(false));
